@@ -59,7 +59,10 @@ def run_dataset_generator(stop_event, prometheus_url, namespace, output_file, in
         os.environ['SLEEP_INTERVAL'] = str(interval)
         
         # Run the script as a module
-        generator_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dataset-generator.py")
+        import importlib.util
+        # Fix the path - look for dataset-generator.py in the project root
+        generator_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 
+                                     "dataset-generator.py")
         spec = importlib.util.spec_from_file_location("dataset_generator", generator_path)
         generator_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(generator_module)
@@ -77,19 +80,22 @@ def run_dataset_generator(stop_event, prometheus_url, namespace, output_file, in
         import traceback
         traceback.print_exc()
 
-def run_dataset_agent(stop_event, input_file, watch_interval, alert_threshold):
+def run_dataset_agent(stop_event, input_file, watch_interval, alert_threshold, openai_api_key=None, use_lang_models=True):
     """Run the dataset generator agent process"""
     logger.info(f"Starting dataset agent with input_file={input_file}, "
-               f"watch_interval={watch_interval}s, alert_threshold={alert_threshold}")
+               f"watch_interval={watch_interval}s, alert_threshold={alert_threshold}, "
+               f"use_lang_models={use_lang_models}")
     
     try:
         # Get the absolute path to the agent file for reliable importing
+        # Fix the path - remove the extra "src/agents" part
         agent_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
-                                "src", "agents", "dataset_generator_agent.py")
+                                "dataset_generator_agent.py")
         
         logger.info(f"Using dataset agent module from: {agent_file}")
         
         # Direct import using importlib for maximum reliability
+        import importlib.util
         spec = importlib.util.spec_from_file_location("dataset_generator_agent", agent_file)
         agent_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(agent_module)
@@ -99,7 +105,9 @@ def run_dataset_agent(stop_event, input_file, watch_interval, alert_threshold):
         agent = DatasetGeneratorAgent(
             input_file=input_file,
             watch_interval=watch_interval,
-            alert_threshold=alert_threshold
+            alert_threshold=alert_threshold,
+            use_lang_models=use_lang_models,
+            openai_api_key=openai_api_key
         )
         
         # Create a wrapper for the run method that respects the stop event
@@ -153,12 +161,14 @@ def run_anomaly_agent(stop_event, input_file, watch_interval, alert_threshold):
     
     try:
         # Get the absolute path to the agent file for reliable importing
+        # Fix the path - remove the extra "src/agents" part
         agent_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
-                                "src", "agents", "anomaly_detection_agent.py")
+                                "anomaly_detection_agent.py")
         
         logger.info(f"Using anomaly agent module from: {agent_file}")
         
         # Direct import using importlib for maximum reliability
+        import importlib.util
         spec = importlib.util.spec_from_file_location("anomaly_detection_agent", agent_file)
         agent_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(agent_module)
@@ -359,4 +369,4 @@ def main():
     logger.info("Monitoring stopped")
 
 if __name__ == "__main__":
-    main() 
+    main()

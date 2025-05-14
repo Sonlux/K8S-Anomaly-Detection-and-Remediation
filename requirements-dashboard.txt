@@ -1,0 +1,11 @@
+streamlit==1.22.0
+plotly==5.14.1
+pandas==1.5.3
+numpy==1.24.3
+networkx==3.1
+streamlit-plotly-events==0.0.6
+kubernetes==26.1.0
+requests==2.29.0
+PyYAML==6.0
+pillow==9.5.0
+watchdog==3.0.0 
