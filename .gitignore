@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Python
 __pycache__/
 *.pyc
@@ -46,6 +45,3 @@ k8s/k8s_monitoring.log
 k8s/k8s_multi_agent.log
 k8s/pod_insights.json
 k8s/pod_metrics.csv
-=======
-.venv/
->>>>>>> d74b88fb1abd03a00034724ae407a40d5bd01fd5
