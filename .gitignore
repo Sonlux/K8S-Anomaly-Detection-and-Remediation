@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+*.egg-info/
+.Python
+
+# Virtual Environment
+venv/
+venv_rag/
+.venv/
+
+# Logs
+*.log
+k8s/logs/
+
+# Data and Models (generated/temporary)
+k8s/data/*.csv
+k8s/data/*.json
+k8s/data/chroma_db/
+k8s/models/*.pkl
+k8s/models/*.h5
+
+# IDE and OS specific files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Jupyter Notebook / IPython
+.ipynb_checkpoints
+
+# Environment variables
+.env
+.flaskenv
+
+# Other temporary files
+*.tmp
+*.bak
+
+# Specific files from your project that seem generated or temporary
+k8s/dataset_generator_agent.log
+k8s/k8s_monitoring.log
+k8s/k8s_multi_agent.log
+k8s/pod_insights.json
+k8s/pod_metrics.csv
