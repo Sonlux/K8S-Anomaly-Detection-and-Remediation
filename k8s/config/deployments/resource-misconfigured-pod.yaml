@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resource-misconfigured
+  labels:
+    app: resource-misconfigured
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resource-misconfigured
+  template:
+    metadata:
+      labels:
+        app: resource-misconfigured
+    spec:
+      containers:
+        - name: resource-misconfigured
+          image: polinux/stress
+          resources:
+            limits:
+              memory: "50Mi"
+              cpu: "100m"
+            requests:
+              memory: "25Mi"
+              cpu: "50m"
+          command: ["stress"]
+          args: ["--vm", "1", "--vm-bytes", "45M", "--vm-hang", "1"]

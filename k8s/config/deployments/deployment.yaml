@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-remediation
+  labels:
+    app: k8s-remediation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-remediation
+  template:
+    metadata:
+      labels:
+        app: k8s-remediation
+    spec:
+      containers:
+        - name: remediation
+          image: your-registry/k8s-remediation:latest
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+          command: ["python", "-u", "k8s_remediation.py"]
