@@ -83,45 +83,34 @@ except Exception:
 core_api = client.CoreV1Api()
 apps_api = client.AppsV1Api()
 
+# Import the RAG utility function
+from rag_utils import query_knowledge_base
+
 # System prompts
-remediation_system_prompt = """You are an AI assistant specialized in Kubernetes remediation.
-Your task is to analyze Kubernetes pod anomalies and suggest precise remediation steps.
-
-For each anomaly:
-1. Analyze the pod metrics and anomaly prediction
-2. Identify the specific issue
-3. Determine the appropriate remediation action
-4. Estimate the impact of the remediation
-5. Present a clear plan for approval
-
-Consider these remediation options:
-- Pod restart
-- Resource limit adjustments
-- Deployment scaling
-- Node eviction
-- Configuration changes
-
-Be specific in your recommendations and always consider the potential impact.
-"""
+remediation_system_prompt = """You are an expert Kubernetes administrator and site reliability engineer (SRE). Your task is to analyze Kubernetes pod anomalies and propose detailed, actionable remediation plans. You have access to a knowledge base of Kubernetes documentation and best practices. **Always prioritize information from the provided context when formulating your response.** If the context does not contain sufficient information, use your general Kubernetes knowledge."""
 
 # Prompt templates
 remediation_plan_prompt = ChatPromptTemplate.from_messages([
     ("system", remediation_system_prompt),
     MessagesPlaceholder(variable_name="messages"),
-    ("human", """I need to remediate an issue with a Kubernetes pod.
+    ("human", """Based on the following Kubernetes pod information and detected anomaly, \
+and using the provided context from the knowledge base, generate a comprehensive remediation plan.
 
-Pod Information:
+<Context>
+{context}
+</Context>
+
+<Pod_Information>
 {pod_info}
+</Pod_Information>
 
-Anomaly Prediction:
+<Anomaly_Prediction>
 {prediction}
+</Anomaly_Prediction>
 
-Please generate a remediation plan including:
-1. Issue summary
-2. Root cause analysis
-3. Recommended remediation steps
-4. Potential impact
-5. Warning level (low/medium/high)""")
+Your remediation plan should be clear, step-by-step, and include commands or configurations where applicable. \
+Focus on the most effective and least disruptive solutions first. \
+Provide a confidence level for your plan (e.g., 'high', 'medium', 'low').""")
 ])
 
 # Define agent graph nodes
@@ -158,23 +147,45 @@ def generate_remediation_plan(state: RemediationState) -> RemediationState:
     probability = prediction.get("anomaly_probability", 0.0)
     
     try:
+        # Formulate a query for the RAG system based on the anomaly and pod info
+        rag_query = f"Kubernetes remediation for {anomaly_type} anomaly on pod {pod_info.get('name', 'unknown')} in namespace {pod_info.get('namespace', 'default')}. Pod details: {json.dumps(pod_info)}. Anomaly details: {json.dumps(prediction)}"
+        
+        # Refine the RAG query to be more specific and question-like
+        rag_query = f"""What is the remediation plan for a Kubernetes pod experiencing '{anomaly_prediction}'?
+        The pod details are: {pod_info.get('name', 'N/A')}, namespace: {pod_info.get('namespace', 'N/A')},
+        status: {pod_info.get('status', 'N/A')}, reason: {pod_info.get('reason', 'N/A')},
+        message: {pod_info.get('message', 'N/A')}. Provide solutions for this specific anomaly and pod state.
+        """
+
+        # Query the knowledge base for relevant documents
+        retrieved_docs = query_knowledge_base(rag_query)
+        
+        # Format the retrieved documents for the prompt
+        context_text = "\n---\n".join([doc['document'] for doc in retrieved_docs])
+        
         if use_llm:
             if use_custom_llm:
                 # Use the custom NVIDIA LLM wrapper
-                prompt_text = f"""I need to remediate an issue with a Kubernetes pod.
+                prompt_text = f"""{remediation_system_prompt}
 
-Pod Information:
+Based on the following Kubernetes pod information and detected anomaly, \
+and using the provided context from the knowledge base, generate a comprehensive remediation plan.
+
+<Context>
+{context_text}
+</Context>
+
+<Pod_Information>
 {pod_info}
+</Pod_Information>
 
-Anomaly Prediction:
+<Anomaly_Prediction>
 {prediction}
+</Anomaly_Prediction>
 
-Please generate a remediation plan including:
-1. Issue summary
-2. Root cause analysis
-3. Recommended remediation steps
-4. Potential impact
-5. Warning level (low/medium/high)"""
+Your remediation plan should be clear, step-by-step, and include commands or configurations where applicable. \
+Focus on the most effective and least disruptive solutions first. \
+Provide a confidence level for your plan (e.g., 'high', 'medium', 'low')."""
 
                 # Generate the remediation plan using the custom wrapper
                 plan_text = nvidia_llm.generate(prompt_text, temperature=0.3)
@@ -194,7 +205,8 @@ Please generate a remediation plan including:
                 prompt = remediation_plan_prompt.format(
                     messages=messages,
                     prediction=prediction,
-                    pod_info=pod_info
+                    pod_info=pod_info,
+                    context=context_text # Pass the retrieved context to the prompt
                 )
                 
                 # Generate the remediation plan
@@ -212,7 +224,7 @@ Please generate a remediation plan including:
             plan_dict = generate_basic_remediation_plan(prediction, pod_info)
             
             # Add basic plan to messages
-            messages.append(AIMessage(content=f"[Basic Analysis Mode]\n\nIssue summary: {plan_dict.get('Issue summary', 'No summary')}\n\nRecommended steps: {plan_dict.get('Recommended remediation steps', 'No steps')}"))
+            messages.append(AIMessage(content=f"[Basic Analysis Mode]\n\nIssue summary: {plan_dict.get('Issue summary', 'No summary')}"))
         
         # Add action type based on anomaly
         if "action_type" not in plan_dict:
@@ -955,4 +967,4 @@ Crash loops typically occur when a container repeatedly fails to start successfu
                 prefix = "AI: " if isinstance(msg, AIMessage) else "Human: "
                 print(f"{prefix}{msg.content}\n")
         else:
-            print("\nRemediation plan rejected. No action taken.") 
+            print("\nRemediation plan rejected. No action taken.")

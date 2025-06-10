@@ -41,20 +41,7 @@ except ImportError:
 
 # Try to import local modules
 try:
-    from anomaly_detection_agent import AnomalyDetectionAgent
-    # Create an instance to use for predictions
-    anomaly_detector = AnomalyDetectionAgent()
-    
-    # Create a wrapper function with the same interface
-    def predict_anomalies(data):
-        # Use the agent to detect anomalies
-        anomalies = anomaly_detector.detect_anomalies({"pod_name": data})
-        # Convert to the expected format
-        return pd.DataFrame({
-            'predicted_anomaly': [1 if anomalies else 0],
-            'anomaly_probability': [anomalies.get("pod_name", {}).get("anomaly_probability", 0.5) if anomalies else 0.5],
-            'anomaly_type': [anomalies.get("pod_name", {}).get("anomaly_type", "unknown") if anomalies else "none"]
-        })
+    from anomaly_prediction import predict_anomalies
 except ImportError:
     # Define a stub function for testing
     def predict_anomalies(data):
@@ -84,9 +71,6 @@ if DEBUG_MODE:
     
 # Global process management variables
 stop_event_triggered = False
-
-# Global remediation tracking
-remediation_history = {}  # Track remediation attempts by pod name
 
 # LLM API configuration
 API_CONFIG = {
@@ -153,8 +137,6 @@ class RemediationState(TypedDict):
     remediation_plan: Dict[str, Any]
     approval_status: str  # "pending", "approved", "rejected", "complete"
     action_status: str  # "waiting", "in_progress", "success", "failed"
-    retry_count: int  # Track number of remediation attempts
-    last_attempt_time: float  # Track time of last remediation attempt
 
 class OrchestratorState(TypedDict):
     """Main state for the orchestrator."""
@@ -2362,67 +2344,6 @@ def orchestrator_plan_remediation(state: OrchestratorState) -> OrchestratorState
         "active_agent": "remediation"
     }
 
-def should_remediate_pod(pod_name: str, remediation_history: Dict[str, Dict[str, Any]]) -> Tuple[bool, str]:
-    """Determine if a pod should be remediated based on its history.
-    
-    Args:
-        pod_name: Name of the pod
-        remediation_history: Dictionary tracking remediation attempts
-        
-    Returns:
-        Tuple of (should_remediate, reason)
-    """
-    # Initialize history for this pod if it doesn't exist
-    if pod_name not in remediation_history:
-        remediation_history[pod_name] = {
-            "retry_count": 0,
-            "last_attempt_time": 0,
-            "backoff_minutes": 5  # Start with 5 minute backoff
-        }
-    
-    history = remediation_history[pod_name]
-    current_time = time.time()
-    
-    # Check if maximum retries exceeded
-    MAX_RETRIES = 3  # Maximum number of remediation attempts
-    if history["retry_count"] >= MAX_RETRIES:
-        return False, f"Maximum remediation attempts ({MAX_RETRIES}) exceeded for pod {pod_name}"
-    
-    # Check if we're still in backoff period
-    elapsed_minutes = (current_time - history["last_attempt_time"]) / 60
-    if elapsed_minutes < history["backoff_minutes"]:
-        remaining = history["backoff_minutes"] - elapsed_minutes
-        return False, f"In backoff period for pod {pod_name}. Try again in {remaining:.1f} minutes"
-    
-    # Update history for this attempt
-    history["retry_count"] += 1
-    history["last_attempt_time"] = current_time
-    
-    # Implement exponential backoff - double the wait time for each attempt
-    history["backoff_minutes"] *= 2
-    
-    return True, f"Remediation attempt {history['retry_count']} for pod {pod_name}"
-
-def remediation_agent(state: RemediationState) -> RemediationState:
-    """Agent for creating and executing remediation plans."""
-    global remediation_history
-    
-    # Get pod name from state
-    pod_name = state.get("pod_info", {}).get("metadata", {}).get("name", "unknown-pod")
-    
-    # Check if we should remediate this pod
-    should_remediate, reason = should_remediate_pod(pod_name, remediation_history)
-    
-    if not should_remediate:
-        logger.warning(f"Skipping remediation: {reason}")
-        # Update state to reflect skipped remediation
-        state["action_status"] = "skipped"
-        state["messages"].append(AIMessage(content=f"Remediation skipped: {reason}"))
-        return state
-    
-    # Continue with normal remediation logic
-    return state
-
 def orchestrator_execute_remediation(state: OrchestratorState) -> OrchestratorState:
     """Execute remediation plans."""
     messages = state["messages"]
@@ -2439,9 +2360,6 @@ def orchestrator_execute_remediation(state: OrchestratorState) -> OrchestratorSt
     any_successful_remediation = False
     remediation_results = {}
     
-    # Initialize remediation history if it doesn't exist
-    remediation_history = state.get("remediation_history", {})
-    
     for pod_name, plan in remediation_plans.items():
         action = plan.get("action", "unknown")
         namespace = "default"  # Default namespace
@@ -2451,18 +2369,10 @@ def orchestrator_execute_remediation(state: OrchestratorState) -> OrchestratorSt
         if pod_metrics:
             namespace = pod_metrics.get("Namespace", "default")
         
-        # Check if we should remediate this pod based on history
-        should_remediate, reason = should_remediate_pod(pod_name, remediation_history)
-        if not should_remediate:
-            messages.append(AIMessage(content=f"Skipping remediation for pod {namespace}/{pod_name}: {reason}"))
-            logger.info(f"Skipping remediation for pod {pod_name}: {reason}")
-            remediation_results[pod_name] = {"success": False, "action": "skipped", "reason": reason}
-            continue
-        
         try:
             # Improve logging to explain root cause
-            logger.info(f"Executing remediation for pod {pod_name}: {action} - {reason}")
-            messages.append(AIMessage(content=f"Executing {action} for pod {namespace}/{pod_name} - {reason}"))
+            logger.info(f"Executing remediation for pod {pod_name}: {action}")
+            messages.append(AIMessage(content=f"Executing {action} for pod {namespace}/{pod_name}"))
             
             # Check pod status and reason for failure before remediation
             if not API_CONFIG.get("test_mode", False):
@@ -2584,7 +2494,6 @@ def orchestrator_execute_remediation(state: OrchestratorState) -> OrchestratorSt
         "status": "remediation_executed",
         "active_agent": "none",
         "pods_with_anomalies": updated_pods_with_anomalies,  # Only clear if successful
-        "remediation_history": remediation_history,  # Store remediation history
         "remediation_state": {
             **remediation_state,
             "remediation_plan": {},  # Clear remediation plans
@@ -2979,4 +2888,4 @@ Type 'help' for available commands or press Enter to start monitoring."""
     return 0
 
 if __name__ == "__main__":
-    main()
+    main() 

@@ -800,3 +800,107 @@
 2025-05-10 09:08:50,295 - k8s-multi-agent - INFO - Detected anomaly in pod test-anomaly-pod-6cc976976c-2hfdt: crash_loop
 2025-05-10 09:08:50,296 - k8s-multi-agent - INFO - Detected anomaly in pod test-crash-797c4d79d6-5fb98: crash_loop
 2025-05-10 09:09:10,281 - k8s-multi-agent - INFO - Shutting down Kubernetes multi-agent system.
+2025-06-09 15:02:08,065 - k8s-multi-agent - INFO - Loaded Kubernetes config from default location
+2025-06-09 15:02:08,066 - k8s-multi-agent - INFO - Initializing with NVIDIA API
+2025-06-09 15:02:08,281 - nvidia_llm - INFO - NVIDIA LLM client initialized
+2025-06-09 15:02:08,281 - k8s-multi-agent - INFO - Successfully initialized NVIDIA API via custom wrapper
+2025-06-09 15:02:08,281 - k8s-multi-agent - INFO - LLM initialization complete. Provider: nvidia
+2025-06-09 15:02:08,281 - k8s-multi-agent - INFO - LLM initialization complete. Provider: nvidia
+2025-06-09 15:02:08,287 - k8s-multi-agent - INFO - Loaded Kubernetes config from default location
+2025-06-09 15:02:08,577 - k8s-multi-agent - INFO - Collected metrics for 23 pods in default namespace
+2025-06-09 15:02:08,577 - k8s-multi-agent - INFO - Collected metrics from 23 pods
+2025-06-09 15:02:08,578 - k8s-multi-agent - INFO - Detected anomaly in pod ai-failure-predictor-65c79ffdf9-j8x8v: crash_loop
+2025-06-09 15:02:08,578 - k8s-multi-agent - INFO - Detected anomaly in pod ai-prediction-7bc8c755c8-4rzcw: crash_loop
+2025-06-09 15:02:08,578 - k8s-multi-agent - INFO - Detected anomaly in pod ai-prediction-7bc8c755c8-gc2wm: crash_loop
+2025-06-09 15:02:08,578 - k8s-multi-agent - INFO - Detected anomaly in pod ai-prediction-7bc8c755c8-gtkjw: crash_loop
+2025-06-09 15:02:08,578 - k8s-multi-agent - INFO - Detected anomaly in pod ai-prediction-7bc8c755c8-mdxpq: crash_loop
+2025-06-09 15:02:08,579 - k8s-multi-agent - INFO - Detected anomaly in pod ai-prediction-7bc8c755c8-n9fb6: crash_loop
+2025-06-09 15:02:08,579 - k8s-multi-agent - INFO - Detected anomaly in pod cpu-spike-demo-74695f4697-5xcsk: pod_failure
+2025-06-09 15:02:08,579 - k8s-multi-agent - INFO - Detected anomaly in pod crash-deployment-57b4487979-b48g4: crash_loop
+2025-06-09 15:02:08,579 - k8s-multi-agent - INFO - Detected anomaly in pod crash-deployment-57b4487979-jp9wp: crash_loop
+2025-06-09 15:02:08,579 - k8s-multi-agent - INFO - Detected anomaly in pod crash-deployment-57b4487979-pwz2t: crash_loop
+2025-06-09 15:02:08,579 - k8s-multi-agent - INFO - Detected anomaly in pod crash-deployment-57b4487979-tmjp8: crash_loop
+2025-06-09 15:02:08,579 - k8s-multi-agent - INFO - Detected anomaly in pod crash-deployment-57b4487979-z6mwh: crash_loop
+2025-06-09 15:02:08,579 - k8s-multi-agent - INFO - Detected anomaly in pod crash-test-676b6d84ff-7fs6h: crash_loop
+2025-06-09 15:02:08,580 - k8s-multi-agent - INFO - Detected anomaly in pod crash-test-d49656786-9zpcg: crash_loop
+2025-06-09 15:02:08,580 - k8s-multi-agent - INFO - Detected anomaly in pod liveness-probe-demo-b6785b99f-z7ddx: crash_loop
+2025-06-09 15:02:08,580 - k8s-multi-agent - INFO - Detected anomaly in pod memory-leak-demo-6f6bbdfd5b-482gn: crash_loop
+2025-06-09 15:02:08,580 - k8s-multi-agent - INFO - Detected anomaly in pod my-nginx-6dc8758899-zd2jk: crash_loop
+2025-06-09 15:02:08,581 - k8s-multi-agent - INFO - Detected anomaly in pod network-issue-demo-cf5b79684-s7slb: crash_loop
+2025-06-09 15:02:08,581 - k8s-multi-agent - INFO - Detected anomaly in pod resource-misconfigured-7f8c54cd8f-zjqzl: crash_loop
+2025-06-09 15:02:08,581 - k8s-multi-agent - INFO - Detected anomaly in pod stress-test-6cdb9cb4b9-bp5v8: pod_failure
+2025-06-09 15:02:08,581 - k8s-multi-agent - INFO - Detected anomaly in pod test-anomaly-deployment-7d47d87969-btddc: crash_loop
+2025-06-09 15:02:08,581 - k8s-multi-agent - INFO - Detected anomaly in pod test-anomaly-pod-6cc976976c-2hfdt: crash_loop
+2025-06-09 15:02:08,581 - k8s-multi-agent - INFO - Detected anomaly in pod test-crash-797c4d79d6-5fb98: crash_loop
+2025-06-09 15:03:01,901 - k8s-multi-agent - INFO - Executing remediation for pod ai-failure-predictor-65c79ffdf9-j8x8v: restart_deployment
+2025-06-09 15:03:01,909 - k8s-multi-agent - INFO - Would restart deployment for pod default/ai-failure-predictor-65c79ffdf9-j8x8v
+2025-06-09 15:03:01,910 - k8s-multi-agent - INFO - Executing remediation for pod ai-prediction-7bc8c755c8-4rzcw: restart_deployment
+2025-06-09 15:03:01,919 - k8s-multi-agent - INFO - Would restart deployment for pod default/ai-prediction-7bc8c755c8-4rzcw
+2025-06-09 15:03:01,919 - k8s-multi-agent - INFO - Executing remediation for pod ai-prediction-7bc8c755c8-gc2wm: restart_deployment
+2025-06-09 15:03:01,926 - k8s-multi-agent - INFO - Would restart deployment for pod default/ai-prediction-7bc8c755c8-gc2wm
+2025-06-09 15:03:01,927 - k8s-multi-agent - INFO - Executing remediation for pod ai-prediction-7bc8c755c8-gtkjw: restart_deployment
+2025-06-09 15:03:01,934 - k8s-multi-agent - INFO - Would restart deployment for pod default/ai-prediction-7bc8c755c8-gtkjw
+2025-06-09 15:03:01,935 - k8s-multi-agent - INFO - Executing remediation for pod ai-prediction-7bc8c755c8-mdxpq: restart_deployment
+2025-06-09 15:03:01,942 - k8s-multi-agent - INFO - Would restart deployment for pod default/ai-prediction-7bc8c755c8-mdxpq
+2025-06-09 15:03:01,943 - k8s-multi-agent - INFO - Executing remediation for pod ai-prediction-7bc8c755c8-n9fb6: restart_deployment
+2025-06-09 15:03:01,949 - k8s-multi-agent - INFO - Would restart deployment for pod default/ai-prediction-7bc8c755c8-n9fb6
+2025-06-09 15:03:01,950 - k8s-multi-agent - INFO - Executing remediation for pod cpu-spike-demo-74695f4697-5xcsk: restart_pod
+2025-06-09 15:03:01,977 - k8s-multi-agent - INFO - Successfully restarted pod default/cpu-spike-demo-74695f4697-5xcsk
+2025-06-09 15:03:01,977 - k8s-multi-agent - INFO - Executing remediation for pod crash-deployment-57b4487979-b48g4: restart_deployment
+2025-06-09 15:03:01,984 - k8s-multi-agent - INFO - Would restart deployment for pod default/crash-deployment-57b4487979-b48g4
+2025-06-09 15:03:01,985 - k8s-multi-agent - INFO - Executing remediation for pod crash-deployment-57b4487979-jp9wp: restart_deployment
+2025-06-09 15:03:01,990 - k8s-multi-agent - INFO - Would restart deployment for pod default/crash-deployment-57b4487979-jp9wp
+2025-06-09 15:03:01,991 - k8s-multi-agent - INFO - Executing remediation for pod crash-deployment-57b4487979-pwz2t: restart_deployment
+2025-06-09 15:03:01,999 - k8s-multi-agent - INFO - Would restart deployment for pod default/crash-deployment-57b4487979-pwz2t
+2025-06-09 15:03:02,000 - k8s-multi-agent - INFO - Executing remediation for pod crash-deployment-57b4487979-tmjp8: restart_deployment
+2025-06-09 15:03:02,011 - k8s-multi-agent - INFO - Would restart deployment for pod default/crash-deployment-57b4487979-tmjp8
+2025-06-09 15:03:02,011 - k8s-multi-agent - INFO - Executing remediation for pod crash-deployment-57b4487979-z6mwh: restart_deployment
+2025-06-09 15:03:02,025 - k8s-multi-agent - INFO - Would restart deployment for pod default/crash-deployment-57b4487979-z6mwh
+2025-06-09 15:03:02,025 - k8s-multi-agent - INFO - Executing remediation for pod crash-test-676b6d84ff-7fs6h: restart_deployment
+2025-06-09 15:03:02,041 - k8s-multi-agent - INFO - Would restart deployment for pod default/crash-test-676b6d84ff-7fs6h
+2025-06-09 15:03:02,042 - k8s-multi-agent - INFO - Executing remediation for pod crash-test-d49656786-9zpcg: restart_deployment
+2025-06-09 15:03:02,106 - k8s-multi-agent - INFO - Would restart deployment for pod default/crash-test-d49656786-9zpcg
+2025-06-09 15:03:02,106 - k8s-multi-agent - INFO - Executing remediation for pod liveness-probe-demo-b6785b99f-z7ddx: restart_deployment
+2025-06-09 15:03:02,114 - k8s-multi-agent - INFO - Would restart deployment for pod default/liveness-probe-demo-b6785b99f-z7ddx
+2025-06-09 15:03:02,114 - k8s-multi-agent - INFO - Executing remediation for pod memory-leak-demo-6f6bbdfd5b-482gn: restart_deployment
+2025-06-09 15:03:02,122 - k8s-multi-agent - INFO - Would restart deployment for pod default/memory-leak-demo-6f6bbdfd5b-482gn
+2025-06-09 15:03:02,123 - k8s-multi-agent - INFO - Executing remediation for pod my-nginx-6dc8758899-zd2jk: restart_deployment
+2025-06-09 15:03:02,127 - k8s-multi-agent - INFO - Would restart deployment for pod default/my-nginx-6dc8758899-zd2jk
+2025-06-09 15:03:02,128 - k8s-multi-agent - INFO - Executing remediation for pod network-issue-demo-cf5b79684-s7slb: restart_deployment
+2025-06-09 15:03:02,132 - k8s-multi-agent - INFO - Would restart deployment for pod default/network-issue-demo-cf5b79684-s7slb
+2025-06-09 15:03:02,133 - k8s-multi-agent - INFO - Executing remediation for pod resource-misconfigured-7f8c54cd8f-zjqzl: restart_deployment
+2025-06-09 15:03:02,142 - k8s-multi-agent - INFO - Would restart deployment for pod default/resource-misconfigured-7f8c54cd8f-zjqzl
+2025-06-09 15:03:02,143 - k8s-multi-agent - INFO - Executing remediation for pod stress-test-6cdb9cb4b9-bp5v8: restart_pod
+2025-06-09 15:03:02,161 - k8s-multi-agent - INFO - Successfully restarted pod default/stress-test-6cdb9cb4b9-bp5v8
+2025-06-09 15:03:02,162 - k8s-multi-agent - INFO - Executing remediation for pod test-anomaly-deployment-7d47d87969-btddc: restart_deployment
+2025-06-09 15:03:02,206 - k8s-multi-agent - INFO - Would restart deployment for pod default/test-anomaly-deployment-7d47d87969-btddc
+2025-06-09 15:03:02,206 - k8s-multi-agent - INFO - Executing remediation for pod test-anomaly-pod-6cc976976c-2hfdt: restart_deployment
+2025-06-09 15:03:02,216 - k8s-multi-agent - INFO - Would restart deployment for pod default/test-anomaly-pod-6cc976976c-2hfdt
+2025-06-09 15:03:02,216 - k8s-multi-agent - INFO - Executing remediation for pod test-crash-797c4d79d6-5fb98: restart_deployment
+2025-06-09 15:03:02,226 - k8s-multi-agent - INFO - Would restart deployment for pod default/test-crash-797c4d79d6-5fb98
+2025-06-09 15:04:21,571 - k8s-multi-agent - WARNING - Error fetching events for pod cpu-spike-demo-74695f4697-gtrd4: '>' not supported between instances of 'datetime.datetime' and 'NoneType'
+2025-06-09 15:04:21,721 - k8s-multi-agent - WARNING - Error fetching events for pod stress-test-6cdb9cb4b9-q9k9l: '>' not supported between instances of 'datetime.datetime' and 'NoneType'
+2025-06-09 15:04:22,018 - k8s-multi-agent - INFO - Collected metrics for 23 pods in default namespace
+2025-06-09 15:04:22,020 - k8s-multi-agent - INFO - Collected metrics from 23 pods
+2025-06-09 15:04:22,022 - k8s-multi-agent - INFO - Detected anomaly in pod ai-failure-predictor-65c79ffdf9-j8x8v: crash_loop
+2025-06-09 15:04:22,023 - k8s-multi-agent - INFO - Detected anomaly in pod ai-prediction-7bc8c755c8-4rzcw: crash_loop
+2025-06-09 15:04:22,023 - k8s-multi-agent - INFO - Detected anomaly in pod ai-prediction-7bc8c755c8-gc2wm: crash_loop
+2025-06-09 15:04:22,023 - k8s-multi-agent - INFO - Detected anomaly in pod ai-prediction-7bc8c755c8-gtkjw: crash_loop
+2025-06-09 15:04:22,023 - k8s-multi-agent - INFO - Detected anomaly in pod ai-prediction-7bc8c755c8-mdxpq: crash_loop
+2025-06-09 15:04:22,024 - k8s-multi-agent - INFO - Detected anomaly in pod ai-prediction-7bc8c755c8-n9fb6: crash_loop
+2025-06-09 15:04:22,024 - k8s-multi-agent - INFO - Detected anomaly in pod crash-deployment-57b4487979-b48g4: crash_loop
+2025-06-09 15:04:22,024 - k8s-multi-agent - INFO - Detected anomaly in pod crash-deployment-57b4487979-jp9wp: crash_loop
+2025-06-09 15:04:22,024 - k8s-multi-agent - INFO - Detected anomaly in pod crash-deployment-57b4487979-pwz2t: crash_loop
+2025-06-09 15:04:22,025 - k8s-multi-agent - INFO - Detected anomaly in pod crash-deployment-57b4487979-tmjp8: crash_loop
+2025-06-09 15:04:22,025 - k8s-multi-agent - INFO - Detected anomaly in pod crash-deployment-57b4487979-z6mwh: crash_loop
+2025-06-09 15:04:22,026 - k8s-multi-agent - INFO - Detected anomaly in pod crash-test-676b6d84ff-7fs6h: crash_loop
+2025-06-09 15:04:22,026 - k8s-multi-agent - INFO - Detected anomaly in pod crash-test-d49656786-9zpcg: crash_loop
+2025-06-09 15:04:22,026 - k8s-multi-agent - INFO - Detected anomaly in pod liveness-probe-demo-b6785b99f-z7ddx: crash_loop
+2025-06-09 15:04:22,026 - k8s-multi-agent - INFO - Detected anomaly in pod memory-leak-demo-6f6bbdfd5b-482gn: crash_loop
+2025-06-09 15:04:22,027 - k8s-multi-agent - INFO - Detected anomaly in pod my-nginx-6dc8758899-zd2jk: crash_loop
+2025-06-09 15:04:22,027 - k8s-multi-agent - INFO - Detected anomaly in pod network-issue-demo-cf5b79684-s7slb: crash_loop
+2025-06-09 15:04:22,027 - k8s-multi-agent - INFO - Detected anomaly in pod resource-misconfigured-7f8c54cd8f-zjqzl: crash_loop
+2025-06-09 15:04:22,027 - k8s-multi-agent - INFO - Detected anomaly in pod test-anomaly-deployment-7d47d87969-btddc: crash_loop
+2025-06-09 15:04:22,028 - k8s-multi-agent - INFO - Detected anomaly in pod test-anomaly-pod-6cc976976c-2hfdt: crash_loop
+2025-06-09 15:04:22,028 - k8s-multi-agent - INFO - Detected anomaly in pod test-crash-797c4d79d6-5fb98: crash_loop
+2025-06-09 15:06:52,833 - k8s-multi-agent - INFO - Shutting down Kubernetes multi-agent system.
