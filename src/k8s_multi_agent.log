@@ -1,0 +1,21 @@
+2025-04-14 20:38:00,641 - k8s-multi-agent - INFO - Loaded Kubernetes config from default location
+2025-04-14 20:38:00,642 - k8s-multi-agent - INFO - Initializing with NVIDIA API
+2025-04-14 20:38:01,166 - nvidia_llm - INFO - NVIDIA LLM client initialized
+2025-04-14 20:38:01,167 - k8s-multi-agent - INFO - Successfully initialized NVIDIA API via custom wrapper
+2025-04-14 20:38:01,167 - k8s-multi-agent - INFO - LLM initialization complete. Provider: nvidia
+2025-04-14 20:38:01,167 - k8s-multi-agent - INFO - LLM initialization complete. Provider: nvidia
+2025-04-14 20:38:01,183 - k8s-multi-agent - INFO - Loaded Kubernetes config from default location
+2025-04-14 20:38:01,224 - k8s-multi-agent - INFO - Collected metrics for 1 pods in default namespace
+2025-04-14 20:38:01,224 - k8s-multi-agent - INFO - Collected metrics from 1 pods
+2025-04-14 20:38:01,224 - k8s-multi-agent - INFO - Detected anomaly in pod crash-deployment-f6689457d-mcwfx: crash_loop
+2025-04-14 20:38:08,110 - k8s-multi-agent - INFO - Executing remediation for pod crash-deployment-f6689457d-mcwfx: restart_deployment
+2025-04-14 20:38:08,116 - k8s-multi-agent - INFO - Would restart deployment for pod default/crash-deployment-f6689457d-mcwfx
+2025-04-14 20:39:12,702 - k8s-multi-agent - INFO - Collected metrics for 1 pods in default namespace
+2025-04-14 20:39:12,703 - k8s-multi-agent - INFO - Collected metrics from 1 pods
+2025-04-14 20:39:12,703 - k8s-multi-agent - INFO - Detected anomaly in pod crash-deployment-f6689457d-mcwfx: pod_failure
+2025-04-14 20:39:20,055 - k8s-multi-agent - INFO - Executing remediation for pod crash-deployment-f6689457d-mcwfx: restart_pod
+2025-04-14 20:39:20,080 - k8s-multi-agent - INFO - Successfully restarted pod default/crash-deployment-f6689457d-mcwfx
+2025-04-14 20:40:23,081 - k8s-multi-agent - WARNING - Error fetching events for pod crash-deployment-f6689457d-ngst8: '>' not supported between instances of 'datetime.datetime' and 'NoneType'
+2025-04-14 20:40:23,082 - k8s-multi-agent - INFO - Collected metrics for 1 pods in default namespace
+2025-04-14 20:40:23,083 - k8s-multi-agent - INFO - Collected metrics from 1 pods
+2025-04-14 20:40:29,052 - k8s-multi-agent - INFO - Shutting down Kubernetes multi-agent system.

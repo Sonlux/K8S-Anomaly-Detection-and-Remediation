@@ -1,0 +1,17 @@
+# ML model parameters
+anomaly_prediction:
+  model_type: "isolation_forest"
+  contamination: 0.05
+  random_state: 42
+  features:
+    - "CPU Usage (%)"
+    - "Memory Usage (%)"
+    - "Pod Restarts"
+    - "Memory Usage (MB)"
+    - "Network Receive Bytes"
+    - "Network Transmit Bytes"
+    - "FS Reads Total (MB)"
+    - "FS Writes Total (MB)"
+    - "Network Receive Packets Dropped (p/s)"
+    - "Network Transmit Packets Dropped (p/s)"
+    - "Ready Containers"

@@ -1,0 +1,244 @@
+2025-04-13 17:00:11,535 - k8s-monitoring - INFO - Running both generator and agent
+2025-04-13 17:00:11,766 - k8s-monitoring - INFO - Starting dataset generator with prometheus_url=http://localhost:8082, namespace=monitoring, output_file=pod_metrics.csv, interval=5s
+2025-04-13 17:00:13,827 - k8s-monitoring - INFO - Starting agent with input_file=pod_metrics.csv, watch_interval=10s, alert_threshold=0.7
+2025-04-13 17:01:03,677 - absl - WARNING - Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
+2025-04-13 17:01:03,949 - anomaly_prediction - INFO - Loaded model, scaler, and threshold: 0.9972
+2025-04-13 17:01:03,951 - dataset-generator-agent - INFO - Initialized DatasetGeneratorAgent with input_file=pod_metrics.csv, watch_interval=10s, alert_threshold=0.7
+2025-04-13 17:01:03,951 - k8s-monitoring - INFO - Agent started
+2025-04-13 17:01:03,967 - dataset-generator-agent - INFO - Read 28 new rows from pod_metrics.csv
+2025-04-13 17:01:04,905 - dataset-generator-agent - WARNING - Anomaly detected in pod prometheus-prometheus-kube-prometheus-prometheus-0: type=oom_kill, probability=0.9976
+2025-04-13 17:01:05,061 - dataset-generator-agent - INFO - Potential issue for alertmanager-prometheus-kube-prometheus-alertmanager-0: probability=0.9146, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:05,061 - dataset-generator-agent - INFO - Potential issue for prometheus-grafana-995866d9b-42rps: probability=0.9367, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:05,063 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-prometheus-operator-565cbd8649-r5cgm: probability=0.9785, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:05,063 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-state-metrics-849c746cf5-hm27j: probability=0.9303, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:05,064 - dataset-generator-agent - WARNING - Insight for prometheus-prometheus-kube-prometheus-prometheus-0: oom_kill anomaly, severity=High, recommendation: 1. Increase memory limits in pod specification
+2. Check for memory leaks in the application
+2. Optimize memory usage in the container
+2025-04-13 17:01:05,065 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-node-exporter-2mjqg: probability=0.9297, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:05,065 - dataset-generator-agent - INFO - Potential issue for test-metrics-pod: probability=0.9096, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:15,091 - dataset-generator-agent - INFO - Read 7 new rows from pod_metrics.csv
+2025-04-13 17:01:15,424 - dataset-generator-agent - WARNING - Anomaly detected in pod prometheus-kube-state-metrics-849c746cf5-hm27j: type=network_issue, probability=0.9984
+2025-04-13 17:01:15,639 - dataset-generator-agent - INFO - Potential issue for alertmanager-prometheus-kube-prometheus-alertmanager-0: probability=0.9558, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:15,639 - dataset-generator-agent - INFO - Potential issue for prometheus-grafana-995866d9b-42rps: probability=0.9915, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:15,639 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-prometheus-operator-565cbd8649-r5cgm: probability=0.9211, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:15,641 - dataset-generator-agent - WARNING - Insight for prometheus-kube-state-metrics-849c746cf5-hm27j: network_issue anomaly, severity=Critical, recommendation: 1. Check network policies and ensure proper connectivity
+2. Verify DNS resolution within the cluster
+2. Check for network congestion or bandwidth issues
+2025-04-13 17:01:15,641 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-kube-prometheus-prometheus-0: probability=0.8980, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:15,641 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-node-exporter-2mjqg: probability=0.9454, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:15,642 - dataset-generator-agent - INFO - Potential issue for test-metrics-pod: probability=0.9171, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:25,668 - dataset-generator-agent - INFO - Read 7 new rows from pod_metrics.csv
+2025-04-13 17:01:26,181 - dataset-generator-agent - INFO - Potential issue for alertmanager-prometheus-kube-prometheus-alertmanager-0: probability=0.7952, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:26,181 - dataset-generator-agent - INFO - Potential issue for prometheus-grafana-995866d9b-42rps: probability=0.8871, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:26,182 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-prometheus-operator-565cbd8649-r5cgm: probability=0.9218, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:26,182 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-state-metrics-849c746cf5-hm27j: probability=0.7414, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:26,183 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-kube-prometheus-prometheus-0: probability=0.7770, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:26,196 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-node-exporter-2mjqg: probability=0.9677, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:26,197 - dataset-generator-agent - INFO - Potential issue for test-metrics-pod: probability=0.9000, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:36,218 - dataset-generator-agent - INFO - Read 7 new rows from pod_metrics.csv
+2025-04-13 17:01:36,293 - dataset-generator-agent - WARNING - Anomaly detected in pod alertmanager-prometheus-kube-prometheus-alertmanager-0: type=network_issue, probability=0.9995
+2025-04-13 17:01:36,435 - dataset-generator-agent - WARNING - Anomaly detected in pod prometheus-kube-prometheus-operator-565cbd8649-r5cgm: type=network_issue, probability=0.9986
+2025-04-13 17:01:36,729 - dataset-generator-agent - WARNING - Anomaly detected in pod test-metrics-pod: type=network_issue, probability=0.9979
+2025-04-13 17:01:36,729 - dataset-generator-agent - WARNING - Insight for alertmanager-prometheus-kube-prometheus-alertmanager-0: network_issue anomaly, severity=Critical, recommendation: 1. Check network policies and ensure proper connectivity
+2. Verify DNS resolution within the cluster
+2. Check for network congestion or bandwidth issues
+2025-04-13 17:01:36,730 - dataset-generator-agent - INFO - Potential issue for prometheus-grafana-995866d9b-42rps: probability=0.8419, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:36,730 - dataset-generator-agent - WARNING - Insight for prometheus-kube-prometheus-operator-565cbd8649-r5cgm: network_issue anomaly, severity=Critical, recommendation: 1. Check network policies and ensure proper connectivity
+2. Verify DNS resolution within the cluster
+2. Check for network congestion or bandwidth issues
+2025-04-13 17:01:36,730 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-state-metrics-849c746cf5-hm27j: probability=0.8838, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:36,731 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-kube-prometheus-prometheus-0: probability=0.8167, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:36,731 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-node-exporter-2mjqg: probability=0.8934, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:01:36,732 - dataset-generator-agent - WARNING - Insight for test-metrics-pod: network_issue anomaly, severity=Critical, recommendation: 1. Check network policies and ensure proper connectivity
+2. Verify DNS resolution within the cluster
+2. Check for network congestion or bandwidth issues
+2025-04-13 17:01:46,536 - k8s-monitoring - INFO - Agent received interrupt
+2025-04-13 17:01:46,536 - k8s-monitoring - INFO - Dataset generator module loaded and running
+2025-04-13 17:03:03,222 - k8s-monitoring - INFO - Dataset generator received interrupt
+2025-04-13 17:03:03,396 - k8s-monitoring - INFO - Received termination signal, shutting down...
+2025-04-13 17:03:03,397 - k8s-monitoring - INFO - All processes terminated, exiting
+2025-04-13 17:03:18,436 - k8s-monitoring - INFO - Running in agent-only mode
+2025-04-13 17:03:18,609 - k8s-monitoring - INFO - Starting agent with input_file=pod_metrics.csv, watch_interval=10s, alert_threshold=0.7
+2025-04-13 17:03:25,105 - absl - WARNING - Compiled the loaded model, but the compiled metrics have yet to be built. `model.compile_metrics` will be empty until you train or evaluate the model.
+2025-04-13 17:03:25,139 - anomaly_prediction - INFO - Loaded model, scaler, and threshold: 0.9972
+2025-04-13 17:03:25,140 - dataset-generator-agent - INFO - Initialized DatasetGeneratorAgent with input_file=pod_metrics.csv, watch_interval=10s, alert_threshold=0.7
+2025-04-13 17:03:25,140 - k8s-monitoring - INFO - Agent started
+2025-04-13 17:03:25,156 - dataset-generator-agent - INFO - Read 56 new rows from pod_metrics.csv
+2025-04-13 17:03:26,075 - dataset-generator-agent - INFO - Potential issue for alertmanager-prometheus-kube-prometheus-alertmanager-0: probability=0.9788, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:03:26,076 - dataset-generator-agent - INFO - Potential issue for prometheus-grafana-995866d9b-42rps: probability=0.9865, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:03:26,077 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-prometheus-operator-565cbd8649-r5cgm: probability=0.8911, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:03:26,078 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-state-metrics-849c746cf5-hm27j: probability=0.9598, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:03:26,078 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-kube-prometheus-prometheus-0: probability=0.9712, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:03:26,079 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-node-exporter-2mjqg: probability=0.9046, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 17:03:26,080 - dataset-generator-agent - INFO - Potential issue for test-metrics-pod: probability=0.9815, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:11,021 - dataset-generator-agent - INFO - Read 7 new rows from pod_metrics.csv
+2025-04-13 22:41:12,552 - dataset-generator-agent - WARNING - Anomaly detected in pod prometheus-kube-prometheus-operator-565cbd8649-r5cgm: type=network_issue, probability=0.9974
+2025-04-13 22:41:12,817 - dataset-generator-agent - WARNING - Anomaly detected in pod prometheus-prometheus-node-exporter-2mjqg: type=network_issue, probability=0.9987
+2025-04-13 22:41:12,891 - dataset-generator-agent - INFO - Potential issue for alertmanager-prometheus-kube-prometheus-alertmanager-0: probability=0.9825, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:12,891 - dataset-generator-agent - INFO - Potential issue for prometheus-grafana-995866d9b-42rps: probability=0.9398, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:12,892 - dataset-generator-agent - WARNING - Insight for prometheus-kube-prometheus-operator-565cbd8649-r5cgm: network_issue anomaly, severity=Critical, recommendation: 1. Check network policies and ensure proper connectivity
+2. Verify DNS resolution within the cluster
+2. Check for network congestion or bandwidth issues
+2025-04-13 22:41:12,893 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-state-metrics-849c746cf5-hm27j: probability=0.9124, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:12,893 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-kube-prometheus-prometheus-0: probability=0.9963, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:12,893 - dataset-generator-agent - WARNING - Insight for prometheus-prometheus-node-exporter-2mjqg: network_issue anomaly, severity=Critical, recommendation: 1. Check network policies and ensure proper connectivity
+2. Verify DNS resolution within the cluster
+2. Check for network congestion or bandwidth issues
+2025-04-13 22:41:12,894 - dataset-generator-agent - INFO - Potential issue for test-metrics-pod: probability=0.9122, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:22,923 - dataset-generator-agent - INFO - Read 7 new rows from pod_metrics.csv
+2025-04-13 22:41:23,256 - dataset-generator-agent - WARNING - Anomaly detected in pod prometheus-kube-state-metrics-849c746cf5-hm27j: type=network_issue, probability=0.9993
+2025-04-13 22:41:23,470 - dataset-generator-agent - INFO - Potential issue for alertmanager-prometheus-kube-prometheus-alertmanager-0: probability=0.9704, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:23,471 - dataset-generator-agent - INFO - Potential issue for prometheus-grafana-995866d9b-42rps: probability=0.9672, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:23,471 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-prometheus-operator-565cbd8649-r5cgm: probability=0.8495, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:23,472 - dataset-generator-agent - WARNING - Insight for prometheus-kube-state-metrics-849c746cf5-hm27j: network_issue anomaly, severity=Critical, recommendation: 1. Check network policies and ensure proper connectivity
+2. Verify DNS resolution within the cluster
+2. Check for network congestion or bandwidth issues
+2025-04-13 22:41:23,472 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-kube-prometheus-prometheus-0: probability=0.7020, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:23,472 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-node-exporter-2mjqg: probability=0.9318, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:23,473 - dataset-generator-agent - INFO - Potential issue for test-metrics-pod: probability=0.9119, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:33,499 - dataset-generator-agent - INFO - Read 14 new rows from pod_metrics.csv
+2025-04-13 22:41:33,900 - dataset-generator-agent - WARNING - Anomaly detected in pod prometheus-prometheus-kube-prometheus-prometheus-0: type=oom_kill, probability=0.9998
+2025-04-13 22:41:34,056 - dataset-generator-agent - WARNING - Anomaly detected in pod test-metrics-pod: type=network_issue, probability=0.9985
+2025-04-13 22:41:34,056 - dataset-generator-agent - INFO - Potential issue for alertmanager-prometheus-kube-prometheus-alertmanager-0: probability=0.7118, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:34,057 - dataset-generator-agent - INFO - Potential issue for prometheus-grafana-995866d9b-42rps: probability=0.9083, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:34,057 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-prometheus-operator-565cbd8649-r5cgm: probability=0.7112, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:34,057 - dataset-generator-agent - WARNING - Insight for prometheus-prometheus-kube-prometheus-prometheus-0: oom_kill anomaly, severity=High, recommendation: 1. Increase memory limits in pod specification
+2. Check for memory leaks in the application
+2. Optimize memory usage in the container
+2025-04-13 22:41:34,058 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-node-exporter-2mjqg: probability=0.9522, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:41:34,058 - dataset-generator-agent - WARNING - Insight for test-metrics-pod: network_issue anomaly, severity=Critical, recommendation: 1. Check network policies and ensure proper connectivity
+2. Verify DNS resolution within the cluster
+2. Check for network congestion or bandwidth issues
+2025-04-13 22:44:54,163 - dataset-generator-agent - INFO - Read 7 new rows from pod_metrics.csv
+2025-04-13 22:44:54,260 - dataset-generator-agent - WARNING - Anomaly detected in pod alertmanager-prometheus-kube-prometheus-alertmanager-0: type=network_issue, probability=0.9976
+2025-04-13 22:44:54,567 - dataset-generator-agent - WARNING - Anomaly detected in pod prometheus-kube-state-metrics-849c746cf5-hm27j: type=network_issue, probability=1.0000
+2025-04-13 22:44:54,888 - dataset-generator-agent - WARNING - Insight for alertmanager-prometheus-kube-prometheus-alertmanager-0: network_issue anomaly, severity=Critical, recommendation: 1. Check network policies and ensure proper connectivity
+2. Verify DNS resolution within the cluster
+2. Check for network congestion or bandwidth issues
+2025-04-13 22:44:54,889 - dataset-generator-agent - INFO - Potential issue for prometheus-grafana-995866d9b-42rps: probability=0.9785, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:44:54,889 - dataset-generator-agent - WARNING - Insight for prometheus-kube-state-metrics-849c746cf5-hm27j: network_issue anomaly, severity=Critical, recommendation: 1. Check network policies and ensure proper connectivity
+2. Verify DNS resolution within the cluster
+2. Check for network congestion or bandwidth issues
+2025-04-13 22:44:54,890 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-kube-prometheus-prometheus-0: probability=0.8888, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:44:54,890 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-node-exporter-2mjqg: probability=0.9520, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:44:54,891 - dataset-generator-agent - INFO - Potential issue for test-metrics-pod: probability=0.7131, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:48:04,997 - dataset-generator-agent - INFO - Read 7 new rows from pod_metrics.csv
+2025-04-13 22:48:05,497 - dataset-generator-agent - INFO - Potential issue for alertmanager-prometheus-kube-prometheus-alertmanager-0: probability=0.7480, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:48:05,497 - dataset-generator-agent - INFO - Potential issue for prometheus-grafana-995866d9b-42rps: probability=0.9199, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:48:05,498 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-prometheus-operator-565cbd8649-r5cgm: probability=0.9859, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:48:05,499 - dataset-generator-agent - INFO - Potential issue for prometheus-kube-state-metrics-849c746cf5-hm27j: probability=0.7958, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:48:05,499 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-kube-prometheus-prometheus-0: probability=0.9469, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:48:05,500 - dataset-generator-agent - INFO - Potential issue for prometheus-prometheus-node-exporter-2mjqg: probability=0.7635, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability
+2025-04-13 22:48:05,501 - dataset-generator-agent - INFO - Potential issue for test-metrics-pod: probability=0.9693, recommendation: 1. Check pod logs for error messages
+2. Verify pod configuration and dependencies
+2. Check node health and resource availability

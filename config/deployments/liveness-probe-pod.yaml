@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: liveness-probe-demo
+  labels:
+    app: liveness-probe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: liveness-probe
+  template:
+    metadata:
+      labels:
+        app: liveness-probe
+    spec:
+      containers:
+        - name: liveness-probe
+          image: busybox
+          resources:
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+          command:
+            [
+              "/bin/sh",
+              "-c",
+              "touch /tmp/healthy; sleep 30; rm -f /tmp/healthy; sleep 600",
+            ]
+          livenessProbe:
+            exec:
+              command:
+                - cat
+                - /tmp/healthy
+            initialDelaySeconds: 5
+            periodSeconds: 5

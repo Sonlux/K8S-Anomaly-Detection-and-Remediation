@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memory-leak-demo
+  labels:
+    app: memory-leak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: memory-leak
+  template:
+    metadata:
+      labels:
+        app: memory-leak
+    spec:
+      containers:
+        - name: memory-leak
+          image: polinux/stress
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+          command: ["stress"]
+          args: ["--vm", "1", "--vm-bytes", "150M", "--vm-hang", "1"]

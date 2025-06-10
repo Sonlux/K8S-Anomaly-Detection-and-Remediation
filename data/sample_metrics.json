@@ -1,0 +1,13 @@
+{
+    "CPU Usage (%)": 85.5,
+    "Memory Usage (%)": 92.3,
+    "Pod Restarts": 5,
+    "Memory Usage (MB)": 768.7,
+    "Network Receive Bytes": 2048.5,
+    "Network Transmit Bytes": 4096.3,
+    "FS Reads Total (MB)": 15.2,
+    "FS Writes Total (MB)": 18.7,
+    "Network Receive Packets Dropped (p/s)": 5,
+    "Network Transmit Packets Dropped (p/s)": 2,
+    "Ready Containers": 1
+} 

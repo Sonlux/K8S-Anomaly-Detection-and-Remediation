@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-failure-predictor
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ai-failure-predictor
+  template:
+    metadata:
+      labels:
+        app: ai-failure-predictor
+    spec:
+      containers:
+      - name: ai-failure-predictor
+        image: helix2810/k8s-ai-failure-predictor:latest  # Updated Docker Hub Image
+        ports:
+        - containerPort: 8000

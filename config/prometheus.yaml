@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    scrape_configs:
+      - job_name: 'kubernetes'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - monitoring
+        metrics_path: /metrics
+        scheme: http
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+    remote_write:
+      - url: 'http://localhost:8082'

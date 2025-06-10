@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cpu-spike-demo
+  labels:
+    app: cpu-spike
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cpu-spike
+  template:
+    metadata:
+      labels:
+        app: cpu-spike
+    spec:
+      containers:
+        - name: cpu-spike
+          image: polinux/stress
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+          command: ["stress"]
+          args: ["--cpu", "2", "--timeout", "30s", "--backoff", "10s"]
