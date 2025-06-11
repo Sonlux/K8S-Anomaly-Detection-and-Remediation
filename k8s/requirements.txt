@@ -13,6 +13,9 @@ langchain>=0.0.267
 langchain-openai>=0.0.2
 langgraph>=0.0.15
 portalocker>=2.7.0
+pydantic>=1.10.8,<2.0.0
 sentence-transformers
 chromadb
 langchain-chroma
+Flask
+Flask-CORS

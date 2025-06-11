@@ -45,3 +45,39 @@ k8s/k8s_monitoring.log
 k8s/k8s_multi_agent.log
 k8s/pod_insights.json
 k8s/pod_metrics.csv
+
+# Node.js
+node_modules
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+
+# Production build files
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.env.local
+.env.development.local
+.env.production.local
+
+# IDEs and editors
+*.swp
+*.swo
+
+# Thumbnails
+.thumbnails/
+
+# Kubernetes specific
+*.k8s.yaml
+*.kubeconfig
+
+# Trae AI specific
+.trae/

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600">
+  <!-- Blue hexagon background -->
+  <path fill="#326CE5" d="M300 0 L565 150 L565 450 L300 600 L35 450 L35 150 Z" />
+  
+  <!-- White wheel -->
+  <g fill="white">
+    <!-- Center circle -->
+    <circle cx="300" cy="300" r="40" />
+    
+    <!-- Spokes -->
+    <path d="M300 120 L300 180 L300 120 Z" stroke="white" stroke-width="40" stroke-linecap="round" />
+    <path d="M300 420 L300 480 L300 420 Z" stroke="white" stroke-width="40" stroke-linecap="round" />
+    <path d="M158 180 L195 230 L158 180 Z" stroke="white" stroke-width="40" stroke-linecap="round" />
+    <path d="M442 370 L479 420 L442 370 Z" stroke="white" stroke-width="40" stroke-linecap="round" />
+    <path d="M158 420 L195 370 L158 420 Z" stroke="white" stroke-width="40" stroke-linecap="round" />
+    <path d="M442 180 L479 230 L442 180 Z" stroke="white" stroke-width="40" stroke-linecap="round" />
+    <path d="M120 300 L180 300 L120 300 Z" stroke="white" stroke-width="40" stroke-linecap="round" />
+    <path d="M420 300 L480 300 L420 300 Z" stroke="white" stroke-width="40" stroke-linecap="round" />
+  </g>
+  
+  <!-- Inner circle -->
+  <circle cx="300" cy="300" r="25" fill="#326CE5" />
+</svg>

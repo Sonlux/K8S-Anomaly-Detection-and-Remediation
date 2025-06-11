@@ -47,16 +47,26 @@ try:
         nvidia_llm = None
         logger.info("Test mode: mocked NVIDIA LLM API")
     else:
-        # First try to import the NVIDIA LLM wrapper
+        # Try to import NVIDIA LLM wrapper
         try:
+            # Import from agents directory using absolute path
+            agents_path = os.path.abspath(os.path.dirname(os.path.abspath(__file__)))
+            sys.path.insert(0, agents_path)  # Insert at beginning of path for priority
             from nvidia_llm import NvidiaLLM
-            nvidia_llm = NvidiaLLM(api_key=nvidia_api_key)
-            logger.info("Successfully initialized NVIDIA LLM API using custom wrapper")
             use_llm = True
             use_custom_llm = True
-        except ImportError:
-            # If the custom wrapper isn't available, try with LangChain
-            logger.warning("NVIDIA LLM wrapper not found, trying with LangChain OpenAI client")
+            nvidia_llm = NvidiaLLM(api_key=nvidia_api_key)
+            logger.info(f"Successfully imported and initialized NvidiaLLM from {agents_path}")
+        except ImportError as e:
+            logger.warning(f"Failed to import NvidiaLLM module: {e}")
+            use_llm = False
+            use_custom_llm = False
+            nvidia_llm = None
+        except Exception as e:
+            logger.error(f"Error initializing NvidiaLLM: {e}")
+            use_llm = False
+            use_custom_llm = False
+            nvidia_llm = None
             llm = ChatOpenAI(
                 base_url="https://integrate.api.nvidia.com/v1", 
                 api_key=nvidia_api_key,
