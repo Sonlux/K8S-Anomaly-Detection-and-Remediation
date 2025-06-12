@@ -30,7 +30,7 @@ class RemediationState(TypedDict):
     action_status: str  # "waiting", "in_progress", "success", "failed"
 
 # Initialize the LLM using NVIDIA Llama API
-nvidia_api_key = os.environ.get("NVIDIA_API_KEY", "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")
+nvidia_api_key = os.environ.get("NVIDIA_API_KEY", "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")
 
 # Check if we're in test mode
 TEST_MODE = os.environ.get("REMEDIATION_TEST_MODE", "false").lower() == "true"

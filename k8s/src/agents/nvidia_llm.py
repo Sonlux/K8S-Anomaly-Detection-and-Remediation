@@ -1,13 +1,15 @@
 from openai import OpenAI
 import os
 import logging
+import json
+import traceback
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("nvidia_llm")
 
 class NvidiaLLM:
-    """Wrapper for NVIDIA's LLM API"""
+    """Wrapper for NVIDIA's LLM API using Llama 3.3 70B Instruct model"""
     
     def __init__(self, api_key=None):
         """Initialize the NVIDIA LLM client.
@@ -23,32 +25,40 @@ class NvidiaLLM:
             logger.warning("NVIDIA API key should typically start with 'nvapi-'")
         
         # Initialize the client
-        self.client = OpenAI(
-            base_url="https://integrate.api.nvidia.com/v1",
-            api_key=self.api_key
-        )
-        logger.info("NVIDIA LLM client initialized")
+        try:
+            self.client = OpenAI(
+                base_url="https://integrate.api.nvidia.com/v1",
+                api_key=self.api_key
+            )
+            logger.info("NVIDIA LLM client initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize NVIDIA LLM client: {str(e)}")
+            raise
         
-    def generate(self, prompt, model="nvidia/llama-3.1-nemotron-70b-instruct", 
-                 temperature=0.5, max_tokens=1024, stream=False):
+    def generate(self, prompt, model="meta/llama-3.3-70b-instruct", 
+                 temperature=0.2, max_tokens=1024, stream=False, top_p=0.7):
         """Generate a response from the NVIDIA LLM.
         
         Args:
             prompt: The prompt to send to the model
-            model: The model ID (default: llama-3.1-nemotron-70b-instruct)
-            temperature: Sampling temperature (default: 0.5)
+            model: The model ID (default: meta/llama-3.3-70b-instruct)
+            temperature: Sampling temperature (default: 0.2)
             max_tokens: Maximum tokens to generate (default: 1024)
             stream: Whether to stream the response (default: False)
+            top_p: Top-p sampling parameter (default: 0.7)
             
         Returns:
             Generated text if stream=False, or a generator yielding text chunks if stream=True
         """
         try:
+            logger.debug(f"Generating response with model: {model}, temperature: {temperature}, top_p: {top_p}")
+            logger.debug(f"Prompt: {prompt[:100]}...")
+            
             completion = self.client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=temperature,
-                top_p=1,
+                top_p=top_p,
                 max_tokens=max_tokens,
                 stream=stream
             )
@@ -59,13 +69,21 @@ class NvidiaLLM:
                     for chunk in completion:
                         if chunk.choices[0].delta.content is not None:
                             yield chunk.choices[0].delta.content
+                        else:
+                            logger.debug(f"Received chunk with no content in delta")
                 return generate_stream()
             else:
                 # Return the full response
-                return completion.choices[0].message.content
+                try:
+                    return completion.choices[0].message.content
+                except Exception as e:
+                    logger.error(f"Unexpected response structure: {e}")
+                    logger.error(f"Response structure: {json.dumps(completion.model_dump(), default=str)}")
+                    raise ValueError("Failed to extract content from response")
                 
         except Exception as e:
             logger.error(f"Error generating response: {str(e)}")
+            logger.error(f"Error details: {traceback.format_exc()}")
             raise
             
     def analyze_k8s_metrics(self, metrics_data, prediction_result):
@@ -105,7 +123,7 @@ If events are present, explain how the event age and count relate to the detecte
 if __name__ == "__main__":
     try:
         # Read API key from environment or provide directly
-        api_key = os.environ.get("NVIDIA_API_KEY", "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")
+        api_key = os.environ.get("NVIDIA_API_KEY", "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")
         
         # Initialize the client
         llm = NvidiaLLM(api_key=api_key)
@@ -149,4 +167,4 @@ if __name__ == "__main__":
             print(text, end="")
             
     except Exception as e:
-        print(f"Error in example: {str(e)}") 
+        print(f"Error in example: {str(e)}")

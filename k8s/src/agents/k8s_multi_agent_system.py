@@ -75,7 +75,7 @@ stop_event_triggered = False
 # LLM API configuration
 API_CONFIG = {
     'openai_api_key': os.environ.get("OPENAI_API_KEY"),
-    'nvidia_api_key': os.environ.get("NVIDIA_API_KEY", "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"),
+    'nvidia_api_key': os.environ.get("NVIDIA_API_KEY", "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"),
     'use_llm': True,
     'use_nvidia_direct': False,
     'llm_provider': "auto"  # "auto", "openai", "nvidia", "none"
@@ -172,7 +172,7 @@ class LlamaLLM:
             logger.info("Detected NVIDIA API key, using NVIDIA endpoint")
             # Always use NVIDIA endpoint when NVIDIA API key is provided, regardless of base_url
             self.base_url = "https://integrate.api.nvidia.com/v1"
-            self.model = "nvidia/llama-3.1-nemotron-70b-instruct"
+            self.model = "meta/llama-3.3-70b-instruct"
             logger.info(f"Using NVIDIA endpoint: {self.base_url} with model: {self.model}")
         else:
             # For non-NVIDIA keys, use provided base_url or default
@@ -234,7 +234,11 @@ class LlamaLLM:
                     return generate_stream()
                 else:
                     # Return the full response
-                    return completion.choices[0].message.content
+                    try:
+                        return completion.choices[0].message.content
+                    except Exception as e:
+                        logger.error(f"Unexpected response structure: {e}")
+                        raise ValueError("Failed to extract content from response")
             else:
                 # Using LangChain
                 from langchain_core.messages import HumanMessage
@@ -335,7 +339,7 @@ def initialize_llm():
     
     # Get API keys from environment
     openai_api_key = os.environ.get("OPENAI_API_KEY")
-    nvidia_api_key = os.environ.get("NVIDIA_API_KEY", "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")
+    nvidia_api_key = os.environ.get("NVIDIA_API_KEY", "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")
     llama_api_key = os.environ.get("LLAMA_API_KEY")
     
     # If Llama API key not provided but we want to use Llama, 
@@ -2888,4 +2892,4 @@ Type 'help' for available commands or press Enter to start monitoring."""
     return 0
 
 if __name__ == "__main__":
-    main() 
+    main()

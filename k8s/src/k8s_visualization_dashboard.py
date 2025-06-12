@@ -40,7 +40,7 @@ except ImportError:
 
 # Initialize LLM for AI insights
 try:
-    nvidia_api_key = os.environ.get("NVIDIA_API_KEY", "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")
+    nvidia_api_key = os.environ.get("NVIDIA_API_KEY", "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")
     llm = NvidiaLLM(api_key=nvidia_api_key)
 except Exception as e:
     st.warning(f"Could not initialize LLM: {str(e)}. Some AI features will be limited.")

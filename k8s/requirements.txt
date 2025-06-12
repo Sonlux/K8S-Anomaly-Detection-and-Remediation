@@ -1,21 +1,38 @@
-pandas>=1.3.0
-numpy>=1.20.0
-kubernetes>=12.0.0
-tensorflow>=2.8.0
-scikit-learn>=1.0.0
-joblib>=1.1.0
-requests>=2.27.1
-python-dateutil>=2.8.2
-matplotlib>=3.5.0
-seaborn>=0.11.2
-openai>=1.0.0
-langchain>=0.0.267
-langchain-openai>=0.0.2
-langgraph>=0.0.15
-portalocker>=2.7.0
-pydantic>=1.10.8,<2.0.0
-sentence-transformers
-chromadb
-langchain-chroma
-Flask
-Flask-CORS
+# Core data processing and ML libraries
+pandas==2.0.3
+numpy==1.24.3
+tensorflow==2.12.0
+scikit-learn==1.0.2
+joblib==1.1.1
+
+# Kubernetes integration
+kubernetes==12.0.1
+
+# HTTP and date handling
+requests==2.28.2
+python-dateutil==2.8.2
+
+# Visualization
+matplotlib==3.5.3
+seaborn==0.12.2
+
+# LLM and RAG components
+openai==1.3.5
+langchain==0.0.267
+langchain-openai==0.0.2
+langgraph==0.0.15
+portalocker==2.7.0
+pydantic==2.0.3
+sentence-transformers==2.2.2
+chromadb==0.4.18
+langchain-chroma==0.0.1
+
+# Web server
+Flask==2.2.3
+Flask-CORS==3.0.10
+
+# Terminal colors
+colorama==0.4.6
+
+# For NVIDIA LLM integration
+tf-keras==2.12.0
