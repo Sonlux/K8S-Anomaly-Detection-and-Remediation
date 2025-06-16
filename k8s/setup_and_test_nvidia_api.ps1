@@ -23,6 +23,19 @@ pip install -r "$scriptPath\nvidia_api_requirements.txt"
 Write-Host "Installing openai package..."
 pip install openai
 
+# Load environment variables from .env file
+if (Test-Path ".env") {
+    Write-Host "Loading environment variables from .env file..."
+    Get-Content ".env" | ForEach-Object {
+        if ($_ -match '^\s*([^#][^=]*)=(.*)$') {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            [Environment]::SetEnvironmentVariable($key, $value, "Process")
+            Write-Host "Set environment variable: $key"
+        }
+    }
+}
+
 # Run the test script
 Write-Host "Running NVIDIA API test script..."
 python "$scriptPath\tests\test_nvidia_api.py"

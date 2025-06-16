@@ -64,6 +64,24 @@ The following environment variables can be used to configure the NVIDIA API inte
 - `LLAMA_API_KEY`: Can also be set to a NVIDIA API key for compatibility
 - `LLAMA_API_URL`: Base URL for the API (defaults to NVIDIA's URL when using a NVIDIA key)
 
+### Configuration with .env File
+
+For easier configuration, you can create a `.env` file in the project root directory with the following content:
+
+```
+# NVIDIA API Key for LLM integration
+NVIDIA_API_KEY=nvapi-your-key-here
+
+# OpenAI API Key (if used)
+# OPENAI_API_KEY=your-openai-key-here
+
+# Llama API configuration (can use NVIDIA API)
+LLAMA_API_KEY=nvapi-your-key-here
+LLAMA_API_URL=https://integrate.api.nvidia.com/v1
+```
+
+The provided scripts (`run_agentic_rag_cli.ps1`, `run_agentic_rag_cli.sh`, and `setup_and_test_nvidia_api.ps1`) will automatically load these environment variables from the `.env` file if it exists.
+
 ### Example Usage
 
 ```python

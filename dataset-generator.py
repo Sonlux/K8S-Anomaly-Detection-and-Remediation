@@ -10,12 +10,8 @@ import traceback
 import re
 
 # Configuration - Updated for Minikube
-PROMETHEUS_URL = 'http://localhost:8082'  # Ensure this matches your Prometheus port-forwarding setup
-
-
-  # Your Minikube Prometheus URL
-NAMESPACE = 'monitoring'  # Replace 'otel-demo' with 'monitoring'
-  # Default namespace in Minikube - change if you're using a different one
+PROMETHEUS_URL = 'http://localhost:9090'  # Standard Prometheus port when port-forwarded from Minikube
+NAMESPACE = 'monitoring'  # Default namespace for Prometheus in Minikube
 OUTPUT_FILE = 'pod_metrics.csv'
 SLEEP_INTERVAL = 5  # Time in seconds between data fetches
 

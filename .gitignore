@@ -81,3 +81,44 @@ yarn-error.log*
 
 # Trae AI specific
 .trae/
+
+# Node.js dependencies
+node_modules/
+k8s/frontend/node_modules/
+
+# Python virtual environments
+.venv/
+k8s/.venv/
+k8s/venv_rag/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+
+# Log files
+*.log
+k8s/logs/
+k8s/*.log
+
+# OS/Editor files
+.DS_Store
+
+# Build output
+.next/
+.qodo/
+.trae/
+
+# Data and generated files
+*.csv
+k8s/pod_metrics.csv
+k8s/src/dataSynthetic.csv
+k8s/src/agents/pod_metrics.csv
+public/data/dataSynthetic.csv
+
+# Environment/config (if present)
+.env
+.env.*
+
+# Lock files (optional, if you want to ignore them)
+# package-lock.json
+# k8s/frontend/package-lock.json

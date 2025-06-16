@@ -1,0 +1,23 @@
+# Kubernetes RAG System Requirements
+
+# Core dependencies
+python-dotenv>=1.0.0
+colorama>=0.4.6
+tqdm>=4.66.1
+typing-extensions>=4.8.0
+pydantic>=2.4.2
+
+# Kubernetes client
+kubernetes>=28.1.0
+
+# RAG and embeddings
+chromadb>=0.4.18
+sentence-transformers>=2.2.2
+
+# LLM integration
+requests>=2.31.0
+nvidia-api-client>=0.1.5
+
+# Optional: For development and testing
+pylint>=3.0.2
+pytest>=7.4.3

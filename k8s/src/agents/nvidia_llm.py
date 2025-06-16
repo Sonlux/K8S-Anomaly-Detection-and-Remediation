@@ -123,7 +123,7 @@ If events are present, explain how the event age and count relate to the detecte
 if __name__ == "__main__":
     try:
         # Read API key from environment or provide directly
-        api_key = os.environ.get("NVIDIA_API_KEY", "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")
+        api_key = os.environ.get("NVIDIA_API_KEY", "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")
         
         # Initialize the client
         llm = NvidiaLLM(api_key=api_key)

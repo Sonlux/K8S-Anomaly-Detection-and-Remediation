@@ -38,11 +38,16 @@ def parse_resource_value(value, is_memory=False):
     return result
 
 def fetch_metrics(pod, k8s_api):
-    """Fetch metrics for a given pod using Kubernetes Metrics API and pod spec."""
+    """Fetch metrics for a given pod using Kubernetes Metrics API and pod spec.
+    
+    This function is compatible with Minikube environments and handles cases where
+    the Metrics API might not be available or configured differently.
+    """
     pod_name = pod.metadata.name
     namespace = pod.metadata.namespace
     pod_id = f"{namespace}/{pod_name}"
     
+    # Check if this is a test pod that should simulate resource exhaustion
     if "crash" in pod_name:
         metrics = {
             'CPU Usage (%)': 90.0,

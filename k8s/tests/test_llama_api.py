@@ -19,7 +19,7 @@ def test_llama_api():
     """Test the Llama API wrapper functionality"""
     try:
         # Default API key that works with NVIDIA API
-        default_api_key = "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"
+        default_api_key = "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"
         
         # Get the API key from environment or command line
         api_key = os.environ.get("LLAMA_API_KEY")

@@ -75,7 +75,7 @@ stop_event_triggered = False
 # LLM API configuration
 API_CONFIG = {
     'openai_api_key': os.environ.get("OPENAI_API_KEY"),
-    'nvidia_api_key': os.environ.get("NVIDIA_API_KEY", "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"),
+    'nvidia_api_key': os.environ.get("NVIDIA_API_KEY", "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"),
     'use_llm': True,
     'use_nvidia_direct': False,
     'llm_provider': "auto"  # "auto", "openai", "nvidia", "none"
@@ -92,14 +92,33 @@ except ImportError:
 try:
     if not TEST_MODE:
         try:
+            # First try to load from default location (works for Minikube and standard kubeconfig)
             config.load_kube_config()
-            logger.info("Loaded Kubernetes config from default location")
-        except Exception:
-            config.load_incluster_config()
-            logger.info("Loaded in-cluster Kubernetes configuration")
+            # Check if this is a Minikube context
+            contexts, active_context = config.list_kube_config_contexts()
+            if active_context and 'minikube' in active_context['name'].lower():
+                logger.info("Detected Minikube environment in kubeconfig")
+            else:
+                logger.info("Loaded Kubernetes config from default location")
+        except Exception as e:
+            logger.warning(f"Could not load from kubeconfig: {e}")
+            try:
+                # Try in-cluster config as fallback
+                config.load_incluster_config()
+                logger.info("Loaded in-cluster Kubernetes configuration")
+            except Exception as in_cluster_err:
+                logger.error(f"Failed to load in-cluster config: {in_cluster_err}")
+                raise
         
         core_api = client.CoreV1Api()
         apps_api = client.AppsV1Api()
+        
+        # Test the connection
+        try:
+            version = core_api.get_api_versions()
+            logger.info(f"Successfully connected to Kubernetes API")
+        except Exception as conn_err:
+            logger.warning(f"Connected to Kubernetes API but test request failed: {conn_err}")
     else:
         logger.info("Test mode enabled - using mock Kubernetes client")
         from unittest.mock import MagicMock
@@ -107,6 +126,7 @@ try:
         apps_api = MagicMock()
 except Exception as e:
     logger.error(f"Failed to initialize Kubernetes client: {e}")
+    logger.error("If using Minikube, ensure it is running with: minikube start")
     core_api = None
     apps_api = None
 

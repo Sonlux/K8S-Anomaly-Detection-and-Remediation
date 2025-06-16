@@ -7,6 +7,21 @@ cd "$(dirname "$0")"
 # Activate the virtual environment
 source .venv/bin/activate
 
+# Load environment variables from .env file
+if [ -f ".env" ]; then
+    echo "Loading environment variables from .env file..."
+    while IFS='=' read -r key value || [ -n "$key" ]; do
+        # Skip comments and empty lines
+        if [[ $key && ! $key =~ ^\s*# && ! -z $value ]]; then
+            # Remove leading/trailing whitespace
+            key=$(echo $key | xargs)
+            value=$(echo $value | xargs)
+            export "$key=$value"
+            echo "Set environment variable: $key"
+        fi
+    done < .env
+fi
+
 # Run the agentic RAG CLI
 python ./src/agentic_rag_cli.py "$@"
 
