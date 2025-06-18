@@ -3,3 +3,4 @@ uvicorn
 colorama
 openai
 python-dotenv
+kubernetes
