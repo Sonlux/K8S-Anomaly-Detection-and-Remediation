@@ -8,7 +8,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import rag_utils for knowledge base querying
-from rag_utils import query_knowledge_base
+from k8s.backend.rag_utils import query_knowledge_base
 
 app = FastAPI(title="Model Context Protocol (MCP) Server")
 

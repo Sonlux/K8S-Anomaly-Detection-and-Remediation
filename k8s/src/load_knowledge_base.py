@@ -18,7 +18,7 @@ import logging
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import RAG utilities
-from rag_utils import (
+from k8s.backend.rag_utils import (
     get_chroma_client,
     get_or_create_collection,
     load_documents_from_json,

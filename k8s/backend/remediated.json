@@ -1,9 +1,0 @@
-[
-  {
-    "id": 1,
-    "pod": "test-anomaly-deployment-7d47d87969-btddc",
-    "cause": "High CPU",
-    "severity": "Critical",
-    "time": "2024-07-01 18:42"
-  }
-]

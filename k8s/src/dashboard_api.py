@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 # Add the parent directory to the Python path to import other modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
 from fetch_metrics import fetch_metrics
-from k8s_client_utils import (
+from k8s.backend.k8s_client_utils import (
     initialize_kubernetes_client,
     get_pod_info,
     get_node_info,
