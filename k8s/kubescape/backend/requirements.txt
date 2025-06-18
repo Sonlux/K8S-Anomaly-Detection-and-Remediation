@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+colorama
+openai
+python-dotenv
