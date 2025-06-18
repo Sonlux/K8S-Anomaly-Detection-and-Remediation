@@ -1,6 +1,8 @@
 fastapi
 uvicorn
 colorama
-openai
 python-dotenv
 kubernetes
+chromadb
+sentence-transformers
+openai
