@@ -1,9 +1,42 @@
+# Kubernetes Monitoring, RAG, and Dashboard System
 
-# Kubernetes Monitoring, Remediation, and RAG System
+## Overview
 
-This project provides a comprehensive solution for monitoring Kubernetes clusters, detecting anomalies, providing remediation recommendations, and answering queries about Kubernetes using a Retrieval Augmented Generation (RAG) system with real-time Minikube integration.
+This project is a full-stack, production-grade solution for:
 
-### Architecture Diagram
+- Monitoring Kubernetes clusters (with Minikube support)
+- Detecting anomalies and providing remediation recommendations
+- Answering Kubernetes questions using Retrieval Augmented Generation (RAG) with LLMs
+- Providing a modern, interactive dashboard UI (React, Vite, Tailwind, shadcn-ui)
+
+---
+
+## Features
+
+### Backend
+
+- Multi-agent system for metrics collection, anomaly detection, and remediation
+- RAG system with Minikube integration for real-time cluster Q&A
+- FastAPI backend with REST API for chat and dashboard
+- Modular Python codebase with support for LLMs (Llama, NVIDIA, etc.)
+- Real-time and historical anomaly detection
+- Automated and manual remediation workflows
+- Integration with Prometheus and Kubernetes API
+- Logging and audit trails for all actions
+
+### Frontend
+
+- Modern React dashboard (Vite, TypeScript, Tailwind CSS, shadcn-ui)
+- Real-time chat interface with draggable/resizable panel
+- Data visualizations (charts, tables, cluster health, etc.)
+- Responsive and accessible UI
+- User authentication and role-based access (optional)
+- Customizable themes and layouts
+- Notification and alert system
+
+---
+
+## Architecture Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -49,61 +82,105 @@ This project provides a comprehensive solution for monitoring Kubernetes cluster
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Component Details
+---
 
-### Processing Layer
+## Directory Structure
 
-#### Dataset Generator Agent (src/agents/dataset_generator_agent.py)
+```
+k8s/
+├── backend/                # FastAPI backend, agents, and utilities
+│   ├── app.py              # FastAPI entrypoint
+│   ├── agentic_rag_cli.py  # RAG CLI
+│   ├── agents/             # Agent modules (anomaly, remediation, etc.)
+│   └── ...                 # Other backend utilities
+├── data/                   # Data storage (metrics, insights, chroma_db, etc.)
+├── models/                 # ML models and artifacts
+├── src/                    # Python source code (agents, utils, etc.)
+├── kubescape/              # Frontend (React, Vite, etc.)
+│   ├── src/                # React source code
+│   ├── public/             # Static assets
+│   ├── package.json        # Frontend dependencies
+│   └── ...                 # Other frontend files
+└── requirements.txt        # Python dependencies
+```
 
-**Purpose**: Processes collected metrics, performs preprocessing, and detects anomalies.
+---
 
-**Implementation Details**:
-- Continuously watches CSV file for new data entries
-- Maintains historical data for trend analysis
-- Processes raw metrics into features suitable for the ML model
-- Communicates with the anomaly detection model
-- Generates structured insights based on model output
+## Backend: Setup & Usage
 
-#### Anomaly Prediction Model (models/anomaly_prediction.py)
+### Prerequisites
 
-**Purpose**: ML model that detects anomalies in pod behavior patterns.
+- Python 3.8+
+- Minikube (for local K8s)
+- kubectl
+- Prometheus (optional)
+- LLM API keys (for RAG/LLM features)
 
-**Implementation Details**:
-- LSTM-based neural network for time series analysis
-- Trained on historical pod behavior patterns
-- Uses statistical methods to identify deviations
-- Returns anomaly probability scores for each pod
+### Install & Run
 
-### Analysis Layer
+```sh
+# Install Python dependencies
+pip install -r requirements.txt
 
-#### Anomaly Detection Agent (src/agents/anomaly_detection_agent.py)
+# Start FastAPI backend
+cd k8s/kubescape/backend
+uvicorn app:app --host 0.0.0.0 --port 8000
 
-**Purpose**: Analyzes anomalies more deeply and generates explanations.
+# (Optional) Run RAG CLI
+cd k8s/src
+python agentic_rag_cli.py
+```
 
-**Implementation Details**:
-- Works with the Dataset Generator Agent's output
-- Provides detailed analysis of why anomalies occurred
-- Generates recommendations for remediation
-- Can use LLM integration for enhanced analysis
+### Environment Variables
 
-#### K8s Metrics Collector (src/agents/k8s_metrics_collector.py)
+Create a `.env` file in `k8s/kubescape/backend/`:
 
-**Purpose**: Collects metrics from Kubernetes API and Prometheus.
+```
+LLAMA_API_KEY=your_llama_api_key
+LLAMA_API_URL=your_llama_api_url
+NVIDIA_API_KEY=your_nvidia_api_key
+```
 
-**Implementation Details**:
-- Interfaces with Kubernetes API for pod information
-- Retrieves metrics from Prometheus for detailed resource usage
-- Formats metrics into standardized format for analysis
+---
 
-#### Multi-Agent System (src/agents/k8s_multi_agent_system.py)
+## Frontend: Setup & Usage
 
-**Purpose**: Orchestrates all components of the monitoring and remediation system.
+### Prerequisites
 
-**Implementation Details**:
-- Coordinates metrics collection, anomaly detection, and remediation
-- Manages state across different agents
-- Provides unified interface for the entire system
-- Handles communication between components
+- Node.js (use nvm if possible)
+- npm
+
+### Install & Run
+
+```sh
+cd k8s/kubescape
+npm install
+npm run dev
+```
+
+- The dashboard will be available at `http://localhost:5173` (or as shown in your terminal).
+
+---
+
+## Key Components
+
+### Backend
+
+- **Chat API**: `backend/app.py` (FastAPI endpoints)
+- **Agents**: `src/agents/` (Python multi-agent system)
+- **RAG CLI**: `src/agentic_rag_cli.py`
+- **Dataset Generator**: `dataset-generator.py`
+- **Anomaly Detection**: `models/anomaly_prediction.py`
+- **Remediation Logic**: `src/agents/remediation_agent.py`
+
+### Frontend
+
+- **Chatbot**: `src/components/Chat/ChatInterface.tsx` (draggable, resizable chat UI)
+- **Dashboard**: `src/components/Dashboard/`
+- **Charts**: `src/components/Dashboard/Charts/`
+- **UI Library**: shadcn-ui, Tailwind CSS
+
+---
 
 ## Data Flow
 
@@ -123,9 +200,9 @@ This project provides a comprehensive solution for monitoring Kubernetes cluster
    - The Multi-Agent System coordinates all components
    - Ensures proper flow of data and control between layers
 
-### RAG System with Real-time Information Flow
+### RAG System with Minikube Integration
 
-1. **User Query**: User submits a question through the CLI interface
+1. **User Query**: User submits a question through the CLI or dashboard chat
 2. **Query Analysis**: System determines if the query requires real-time information
 3. **Knowledge Retrieval**:
    - For general knowledge: Retrieves information from the ChromaDB knowledge base
@@ -134,41 +211,23 @@ This project provides a comprehensive solution for monitoring Kubernetes cluster
 5. **Response Generation**: Uses an LLM to generate a comprehensive response
 6. **Presentation**: Displays the formatted response to the user
 
-## RAG System with Minikube Integration
+---
 
-The project now includes a Retrieval Augmented Generation (RAG) system that can answer questions about Kubernetes and fetch real-time information from your Minikube cluster.
+## Example Commands
 
-### Features
+- Run all monitoring: `python run_monitoring.py`
+- Run dataset generator: `python dataset-generator.py`
+- Run multi-agent system: `python src/agents/k8s_multi_agent_system.py`
+- Run the RAG CLI: `python src/agentic_rag_cli.py`
 
-- **Interactive CLI Chat Interface**: Ask questions about Kubernetes concepts, troubleshooting, or best practices
-- **Real-time Kubernetes Information**: Fetch live information from your Minikube cluster
-- **Context-aware Responses**: Combines static knowledge with real-time cluster state
-- **Chain of Thought Reasoning**: Detailed explanations with step-by-step reasoning
-- **Minikube Integration**: Automatically detects and adapts to Minikube environments
+---
 
-### Using the RAG System
-
-Run the CLI interface:
-
-```bash
-# Navigate to the src directory
-cd k8s/src
-
-# Run the CLI
-python agentic_rag_cli.py
-```
-
-If Minikube is running, the system will automatically detect it and enable real-time information fetching.
-
-### Example Queries
-
-You can ask various questions about Kubernetes concepts and your Minikube cluster:
+## Example Queries
 
 - **General Kubernetes Knowledge**:
   - "What is a Pod in Kubernetes?"
   - "How do I troubleshoot a CrashLoopBackOff error?"
   - "Explain Kubernetes RBAC"
-
 - **Real-time Minikube Information**:
   - "Show me the pods in my cluster"
   - "What services are running?"
@@ -176,85 +235,7 @@ You can ask various questions about Kubernetes concepts and your Minikube cluste
   - "Get the status of my deployments"
   - "Show me the logs for pod my-pod-name"
 
-## Directory Structure
-
-```
-k8s/
-├── config/                  # Configuration files
-├── data/                    # Data storage directory
-│   ├── pod_metrics.csv      # Raw metrics data
-│   └── pod_insights.json    # Anomaly insights
-├── logs/                    # Log files
-├── models/                  # Machine learning models
-│   ├── anomaly_prediction.py
-│   └── model_artifacts/     # Trained model files
-├── src/                     # Source code
-│   ├── agents/              # Agent implementations
-│   │   ├── anomaly_detection_agent.py
-│   │   ├── dataset_generator_agent.py
-│   │   └── k8s_multi_agent_system.py
-│   ├── agentic_rag_cli.py   # RAG system CLI interface
-│   ├── k8s_client_utils.py  # Kubernetes client utilities
-│   ├── k8s_knowledge_fetcher.py # Kubernetes knowledge fetcher
-│   ├── rag_utils.py         # RAG utilities
-│   └── utils/               # Shared utilities
-├── dataset-generator.py     # Data collection script
-├── run_monitoring.py        # Orchestration script
-└── requirements.txt         # Dependencies
-```
-
-## Commands
-
-### Run the RAG System with Minikube Integration:
-
-```bash
-cd src
-python agentic_rag_cli.py
-```
-
-### Run the Multi-Agent System:
-
-```bash
-cd src/agents
-python k8s_multi_agent_system.py
-```
-
-### Run All Monitoring Components:
-
-```bash
-python run_monitoring.py
-```
-
-### Run Individual Components:
-
-```bash
-# Dataset Generator
-python dataset-generator.py
-
-# Dataset Generator Agent
-python src/agents/dataset_generator_agent.py
-
-# Anomaly Detection Agent
-python anomaly_detection_agent.py
-
-# Metrics Collection
-python fetch_metrics.py
-```
-
-### Command-line Options:
-
-```bash
-# Run monitoring with custom parameters
-python run_monitoring.py --prometheus-url http://localhost:8082 --namespace monitoring --generator-interval 5 --output-file pod_metrics.csv --watch-interval 10 --alert-threshold 0.7
-```
-
-Key parameters:
-- `--prometheus-url`: Prometheus URL (default: http://localhost:8082)
-- `--namespace`: Kubernetes namespace to monitor (default: monitoring)
-- `--generator-interval`: Interval in seconds between metrics collection (default: 5)
-- `--output-file`: Output file for metrics (default: pod_metrics.csv)
-- `--watch-interval`: Interval in seconds between agent checks (default: 10)
-- `--alert-threshold`: Probability threshold for anomaly alerts (default: 0.7)
+---
 
 ## Installation and Setup
 
@@ -286,7 +267,6 @@ pip install -r requirements.txt
 # Required for LLM integration
 LLAMA_API_KEY=your_llama_api_key
 LLAMA_API_URL=your_llama_api_url
-
 # Optional: Use NVIDIA API if available
 NVIDIA_API_KEY=your_nvidia_api_key
 ```
@@ -306,6 +286,78 @@ For Linux/Mac:
 ```
 
 Or follow the manual setup instructions in MINIKUBE_SETUP.md.
+
+---
+
+## Frontend Details
+
+### Technologies Used
+
+- Vite
+- React 18 (TypeScript)
+- Tailwind CSS
+- shadcn-ui
+- Zustand (state management)
+- React Query (server state)
+- Recharts, D3.js (visualizations)
+
+### Main UI Components
+
+- **ChatInterface**: Draggable, resizable chatbot panel
+- **Dashboard**: Cluster overview, anomaly feed, metrics grid, charts
+- **Remediation Center**: Manual and automated remediation actions
+- **Settings**: User preferences, notification settings
+
+### Running the Frontend
+
+```sh
+cd k8s/kubescape
+npm install
+npm run dev
 ```
 
-        
+---
+
+## Backend Details
+
+### Main Python Modules
+
+- `agentic_rag_cli.py`: CLI for RAG system
+- `app.py`: FastAPI backend
+- `agents/`: Multi-agent orchestration, anomaly detection, remediation
+- `models/`: ML models for anomaly prediction
+- `data/`: Metrics, insights, and ChromaDB
+
+### Running the Backend
+
+```sh
+cd k8s/kubescape/backend
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+---
+
+## Contributing
+
+1. Fork the repo and create a feature branch.
+2. Make your changes and add tests if needed.
+3. Open a pull request with a clear description.
+
+---
+
+## License
+
+MIT License (or your chosen license)
+
+---
+
+## Acknowledgements
+
+- Kubernetes, Minikube, Prometheus
+- Llama, NVIDIA, and other LLM providers
+- React, Vite, Tailwind CSS, shadcn-ui
+- All contributors and open-source libraries used in this project
+
+---
+
+For more details, see the individual module READMEs and documentation files in the repo.
