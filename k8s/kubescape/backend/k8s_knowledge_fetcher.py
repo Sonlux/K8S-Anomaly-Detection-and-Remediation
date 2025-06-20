@@ -27,26 +27,29 @@ def fetch_k8s_info(query: str) -> str:
         # Pods
         if "pod" in query or "pods" in query:
             namespace = 'default'
-            # Try to extract namespace from query
             if "all namespaces" in query or "--all-namespaces" in query or ('pods' in query and 'namespace' not in query):
-                # Show all pods in all namespaces by default
                 from kubernetes import client
                 core_api = client.CoreV1Api()
                 pods = core_api.list_pod_for_all_namespaces().items
                 if not pods:
                     return "❌ No pods found in any namespace."
-                result = f"📦 **Pods in all namespaces:**\n\n"
+                # Group pods by namespace for better readability
+                from collections import defaultdict
+                ns_pods = defaultdict(list)
                 for pod in pods:
-                    status_emoji = "✅" if pod.status.phase == 'Running' else "⚠️" if pod.status.phase == 'Pending' else "❌"
-                    result += f"{status_emoji} **{pod.metadata.name}** (Namespace: {pod.metadata.namespace})\n"
-                    result += f"   Status: {pod.status.phase}\n"
-                    result += f"   Node: {pod.spec.node_name}\n"
-                    result += f"   IP: {pod.status.pod_ip}\n"
-                    if pod.status.container_statuses:
-                        result += "   Containers:\n"
-                        for container in pod.status.container_statuses:
-                            ready_emoji = "✅" if container.ready else "❌"
-                            result += f"     {ready_emoji} {container.name} (Restarts: {container.restart_count})\n"
+                    ns_pods[pod.metadata.namespace].append(pod)
+                result = f"📦 **Pods in all namespaces:**\n\n"
+                for ns in sorted(ns_pods.keys()):
+                    result += f"Namespace: {ns}\n"
+                    for pod in ns_pods[ns]:
+                        status_emoji = "✅" if pod.status.phase == 'Running' else "⚠️" if pod.status.phase == 'Pending' else "❌"
+                        result += f"  {status_emoji} {pod.metadata.name}\n"
+                        result += f"     Status: {pod.status.phase}, Node: {pod.spec.node_name}, IP: {pod.status.pod_ip}\n"
+                        if pod.status.container_statuses:
+                            result += "     Containers:\n"
+                            for container in pod.status.container_statuses:
+                                ready_emoji = "✅" if container.ready else "❌"
+                                result += f"       {ready_emoji} {container.name} (Restarts: {container.restart_count})\n"
                     result += "\n"
                 return result
             else:
@@ -154,18 +157,23 @@ def fetch_pod_info_all_namespaces() -> str:
         pods = core_api.list_pod_for_all_namespaces().items
         if not pods:
             return "❌ No pods found in any namespace."
-        result = f"📦 **Pods in all namespaces:**\n\n"
+        # Group pods by namespace for better readability
+        from collections import defaultdict
+        ns_pods = defaultdict(list)
         for pod in pods:
-            status_emoji = "✅" if pod.status.phase == 'Running' else "⚠️" if pod.status.phase == 'Pending' else "❌"
-            result += f"{status_emoji} **{pod.metadata.name}** (Namespace: {pod.metadata.namespace})\n"
-            result += f"   Status: {pod.status.phase}\n"
-            result += f"   Node: {pod.spec.node_name}\n"
-            result += f"   IP: {pod.status.pod_ip}\n"
-            if pod.status.container_statuses:
-                result += "   Containers:\n"
-                for container in pod.status.container_statuses:
-                    ready_emoji = "✅" if container.ready else "❌"
-                    result += f"     {ready_emoji} {container.name} (Restarts: {container.restart_count})\n"
+            ns_pods[pod.metadata.namespace].append(pod)
+        result = f"📦 **Pods in all namespaces:**\n\n"
+        for ns in sorted(ns_pods.keys()):
+            result += f"Namespace: {ns}\n"
+            for pod in ns_pods[ns]:
+                status_emoji = "✅" if pod.status.phase == 'Running' else "⚠️" if pod.status.phase == 'Pending' else "❌"
+                result += f"  {status_emoji} {pod.metadata.name}\n"
+                result += f"     Status: {pod.status.phase}, Node: {pod.spec.node_name}, IP: {pod.status.pod_ip}\n"
+                if pod.status.container_statuses:
+                    result += "     Containers:\n"
+                    for container in pod.status.container_statuses:
+                        ready_emoji = "✅" if container.ready else "❌"
+                        result += f"       {ready_emoji} {container.name} (Restarts: {container.restart_count})\n"
             result += "\n"
         return result
     except Exception as e:

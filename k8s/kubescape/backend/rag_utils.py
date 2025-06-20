@@ -2,6 +2,8 @@ import chromadb
 from sentence_transformers import SentenceTransformer
 import os
 import json
+import re
+from typing import List, Dict, Tuple
 
 # Initialize the embedding model and ChromaDB client
 # We'll use a small, efficient model for demonstration purposes.
@@ -23,25 +25,120 @@ def get_or_create_collection(client, collection_name="k8s_docs"):
     collection = client.get_or_create_collection(name=collection_name)
     return collection
 
-def add_documents_to_knowledge_base(collection, documents: list[str], metadatas: list[dict], ids: list[str]):
-    """Adds documents to the ChromaDB collection.
+def semantic_chunker(
+    document_text: str, source: str, max_chunk_size: int = 800, overlap: int = 100
+) -> List[Tuple[str, Dict]]:
+    """
+    Splits a document into semantic chunks based on headings and paragraphs.
 
     Args:
-        collection: The ChromaDB collection object.
-        documents (list[str]): List of text documents to add.
-        metadatas (list[dict]): List of metadata dictionaries for each document.
-        ids (list[str]): List of unique IDs for each document.
+        document_text: The raw text of the document.
+        source: The source identifier for the document (e.g., file path).
+        max_chunk_size: The target maximum size for a chunk (in characters).
+        overlap: The number of characters to overlap between chunks.
+
+    Returns:
+        A list of tuples, where each tuple contains the chunk text and its metadata.
     """
-    # Generate embeddings for the documents
-    embeddings = embedding_model.encode(documents).tolist()
+    chunks = []
+    # Split by markdown headings (###, ##, #)
+    # This regex will split the text by headings but keep the headings with the following text
+    sections = re.split(r'(^#+\s.*$)', document_text, flags=re.MULTILINE)
     
+    current_heading = "General"
+    chunk_id_counter = 0
+
+    # The first element might be content before the first heading
+    content_accumulator = sections[0].strip() if sections[0].strip() else ""
+    
+    # Process the document in pairs of (heading, content)
+    for i in range(1, len(sections), 2):
+        heading = sections[i].strip()
+        content = sections[i+1].strip()
+
+        # If there was content before this heading, process it under the previous heading
+        if content_accumulator:
+            # Further split by paragraphs
+            paragraphs = content_accumulator.split('\n\n')
+            for para_idx, paragraph in enumerate(paragraphs):
+                if len(paragraph) > max_chunk_size:
+                    # If a paragraph is too long, split it further by sentences
+                    sentences = re.split(r'(?<=[.!?])\s+', paragraph)
+                    sub_chunk = ""
+                    for sentence in sentences:
+                        if len(sub_chunk) + len(sentence) > max_chunk_size:
+                            chunks.append((
+                                sub_chunk.strip(),
+                                {"source": source, "heading": current_heading, "chunk_id": f"{source}-{chunk_id_counter}"}
+                            ))
+                            chunk_id_counter += 1
+                            sub_chunk = sub_chunk[-overlap:] + " " + sentence
+                        else:
+                            sub_chunk += " " + sentence
+                    if sub_chunk.strip():
+                        chunks.append((
+                            sub_chunk.strip(),
+                            {"source": source, "heading": current_heading, "chunk_id": f"{source}-{chunk_id_counter}"}
+                        ))
+                        chunk_id_counter += 1
+                elif paragraph:
+                    chunks.append((
+                        paragraph,
+                        {"source": source, "heading": current_heading, "chunk_id": f"{source}-{chunk_id_counter}"}
+                    ))
+                    chunk_id_counter += 1
+        
+        # Start new section with the current heading
+        current_heading = heading.lstrip('#').strip()
+        content_accumulator = content
+
+    # Process any remaining content
+    if content_accumulator:
+        paragraphs = content_accumulator.split('\n\n')
+        for paragraph in paragraphs:
+             if paragraph:
+                chunks.append((
+                    paragraph,
+                    {"source": source, "heading": current_heading, "chunk_id": f"{source}-{chunk_id_counter}"}
+                ))
+                chunk_id_counter += 1
+
+    return chunks
+
+def add_documents_to_knowledge_base(collection, documents: list[str], metadatas: list[dict], ids: list[str]):
+    """
+    Chunks documents semantically and adds them to the ChromaDB collection.
+    """
+    all_chunks = []
+    all_metadatas = []
+    all_ids = []
+
+    for doc, meta, doc_id in zip(documents, metadatas, ids):
+        source = meta.get("source", doc_id)
+        # Use semantic_chunker to split the document
+        chunked_data = semantic_chunker(doc, source)
+        
+        for i, (chunk_text, chunk_meta) in enumerate(chunked_data):
+            all_chunks.append(chunk_text)
+            all_metadatas.append(chunk_meta)
+            # Create a unique ID for each chunk
+            all_ids.append(f"{doc_id}_chunk_{i}")
+
+    if not all_chunks:
+        print("No chunks were generated from the documents.")
+        return
+
+    # Generate embeddings for the chunks
+    embeddings = embedding_model.encode(all_chunks).tolist()
+    
+    # Add chunks to the collection
     collection.add(
         embeddings=embeddings,
-        documents=documents,
-        metadatas=metadatas,
-        ids=ids
+        documents=all_chunks,
+        metadatas=all_metadatas,
+        ids=all_ids
     )
-    print(f"Added {len(documents)} documents to the knowledge base.")
+    print(f"Added {len(all_chunks)} chunks from {len(documents)} documents to the knowledge base.")
 
 def load_documents_from_json(file_path: str):
     """Loads documents, metadatas, and ids from a JSON file.
@@ -70,22 +167,16 @@ def load_documents_from_json(file_path: str):
         print(f"Error: Missing key in JSON data: {e}")
         return [], [], []
 
-def query_knowledge_base(collection, query_text: str, n_results: int = 3):
-    """Queries the knowledge base for relevant documents.
-
-    Args:
-        collection: The ChromaDB collection object.
-        query_text (str): The query string.
-        n_results (int): Number of top results to retrieve.
-
-    Returns:
-        list: A list of retrieved documents.
+def query_knowledge_base(collection, query_text: str, n_results: int = 5):
+    """
+    Queries the knowledge base for relevant document chunks.
+    Now retrieves more chunks to provide richer context.
     """
     query_embedding = embedding_model.encode([query_text]).tolist()
     results = collection.query(
         query_embeddings=query_embedding,
         n_results=n_results,
-        include=['documents', 'metadatas']
+        include=['documents', 'metadatas', 'distances']
     )
     return results
 
@@ -139,6 +230,11 @@ if __name__ == "__main__":
     #   {"document": "Text of doc 2", "metadata": {"source": "runbook", "type": "troubleshooting"}, "id": "doc2"}
     # ]
     
+    # The add_documents_to_knowledge_base function will now automatically chunk these documents.
+    add_documents_to_knowledge_base(collection, sample_docs, sample_metadatas, sample_ids)
+
+    # Example Usage: Load documents from a JSON file
+    # The loaded documents will also be chunked automatically.
     knowledge_file_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'k8s_knowledge.json')
     if os.path.exists(knowledge_file_path):
         new_docs, new_metadatas, new_ids = load_documents_from_json(knowledge_file_path)
@@ -156,6 +252,7 @@ if __name__ == "__main__":
     for i, doc in enumerate(results['documents'][0]):
         print(f"  {i+1}. {doc}")
         print(f"     Metadata: {results['metadatas'][0][i]}")
+        print(f"     Distance: {results['distances'][0][i]}")
 
     query_2 = "How to scale my application automatically?"
     results_2 = query_knowledge_base(collection, query_2)
@@ -164,3 +261,4 @@ if __name__ == "__main__":
     for i, doc in enumerate(results_2['documents'][0]):
         print(f"  {i+1}. {doc}")
         print(f"     Metadata: {results_2['metadatas'][0][i]}")
+        print(f"     Distance: {results_2['distances'][0][i]}")

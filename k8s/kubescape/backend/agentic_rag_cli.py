@@ -45,8 +45,6 @@ from rag_utils import (
 )
 
 # Import Kubernetes knowledge fetcher
-# Import Kubernetes knowledge fetcher
-# Import Kubernetes knowledge fetcher
 try:
     from k8s_knowledge_fetcher import (
         fetch_k8s_info,
@@ -66,9 +64,6 @@ except ImportError as e:
     logging.warning(f"Could not import Kubernetes knowledge fetcher: {e}")
     k8s_fetcher_available = False
 
-
-
-
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -86,37 +81,30 @@ except ImportError as e:
 
 # Constants
 SYSTEM_PROMPT = """
-You are Koda, a Kubernetes Anomaly Remediation Agent. Your job is to identify issues in Kubernetes clusters, 
-explain them clearly, and suggest safe, practical resolutions.
+You are Koda, a Kubernetes Anomaly Remediation Agent. Your mission is to provide clear, accurate, and actionable advice on Kubernetes issues.
 
-You have access to a knowledge base of Kubernetes documentation, errors, and best practices.
+You will be given context from a knowledge base containing Kubernetes documentation, best practices, and troubleshooting guides. This context is provided in chunks, each with a source and a section heading.
 
-When answering questions:
-1. Analyze the query to understand what Kubernetes concept or issue is being asked about
-2. Use the retrieved context from the knowledge base to inform your answer
-3. Provide a clear, step-by-step explanation with a chain of thought
-4. Include practical examples or kubectl commands when relevant
-5. If you're unsure or the knowledge base doesn't contain relevant information, acknowledge this
+Your task is to follow these steps to construct your answer:
+1.  **Analyze the User's Query**: Understand the core problem or question the user is asking.
+2.  **Synthesize Information**: Review all the provided context chunks. Identify the most relevant pieces of information from each chunk that address the user's query.
+3.  **Formulate a Chain of Thought**:
+    *   Start by stating the primary issue or topic.
+    *   Build a step-by-step explanation by combining information from the relevant chunks.
+    *   When you use information from a chunk, reference its source and section (e.g., "[Source: k8s_docs | Section: Pod Lifecycle]").
+    *   If multiple chunks contribute to a point, synthesize them into a coherent paragraph.
+4.  **Provide Actionable Recommendations**: If the query is about a problem, offer clear, numbered steps for diagnosis and resolution. Include `kubectl` commands where appropriate.
+5.  **Acknowledge Limitations**: If the provided context does not contain enough information to fully answer the query, state what's missing and suggest what the user could look for.
 
-Minikube-specific knowledge:
-- Minikube runs a single-node Kubernetes cluster locally for development and testing
-- Common Minikube commands include: minikube start, minikube stop, minikube dashboard
-- Minikube addons can be enabled with: minikube addons enable <addon-name>
-- For metrics collection in Minikube, the metrics-server addon must be enabled
-- Prometheus can be accessed in Minikube via port-forwarding from the monitoring namespace
-- To access Prometheus in Minikube: kubectl port-forward -n monitoring service/prometheus-server 9090:80
-- Minikube has resource limitations compared to production clusters, so resource-intensive applications may need configuration adjustments
-- Common Minikube troubleshooting includes checking VM driver compatibility, ensuring sufficient resources, and verifying addon status
-- For persistent storage in Minikube, use the 'storage-provisioner' addon and PersistentVolumeClaims
-- Minikube networking differs from production clusters; use 'minikube service' to access NodePort services
+**Example of a good response:**
+> The `CrashLoopBackOff` error you're seeing indicates that a container in your pod is starting and then repeatedly crashing.
+>
+> Here's a breakdown of how to troubleshoot this, based on the provided context:
+> 1.  **Check Container Logs**: The first step is to inspect the logs of the crashing container to find out why it's failing. You can do this with the command `kubectl logs <pod-name> -c <container-name>` [Source: k8s_troubleshooting | Section: Debugging Pods].
+> 2.  **Review Resource Limits**: Insufficient memory or CPU can also cause crashes. Ensure the pod has adequate resources defined in its manifest [Source: k8s_best_practices | Section: Resource Management].
+> 3.  **Verify Liveness Probes**: An incorrectly configured liveness probe could be terminating your container prematurely. Check your deployment configuration for the probe's settings [Source: k8s_docs | Section: Liveness and Readiness Probes].
 
-When detecting Minikube-specific issues:
-1. Check if required addons are enabled (metrics-server, dashboard, etc.)
-2. Verify resource allocation is sufficient for the workload
-3. Consider Minikube's single-node architecture when diagnosing cluster-wide problems
-4. Recommend Minikube-specific commands and approaches
-
-Always prioritize accuracy over completeness. If you don't know something, say so.
+Always prioritize accuracy and clarity. Your goal is to be a helpful and trustworthy assistant.
 """
 
 class ChatMessage:
@@ -157,26 +145,39 @@ class KubernetesAgenticRAG:
         # Initialize the LLM
         self.initialize_llm()
     
-    def initialize_knowledge_base(self):
+    def clear_and_rebuild_collection(self):
+        """Clears and rebuilds the knowledge base collection."""
+        try:
+            logger.info(f"Clearing collection: {self.collection.name}")
+            self.client.delete_collection(name=self.collection.name)
+            self.collection = get_or_create_collection(self.client)
+            logger.info("Collection cleared. Rebuilding from sources...")
+
+            # Here you would call your document loading functions
+            # For this example, we'll assume a default loading mechanism exists
+            # In a real app, you would load from JSON files or other sources
+            # Example:
+            # docs, metas, ids = load_documents_from_json('path/to/your/data.json')
+            # add_documents_to_knowledge_base(self.collection, docs, metas, ids)
+
+            logger.info("Knowledge base rebuild process initiated.")
+        except Exception as e:
+            logger.error(f"Failed to clear and rebuild collection: {e}")
+
+    def initialize_knowledge_base(self, rebuild: bool = False):
         """Initialize the ChromaDB knowledge base."""
         logger.info("Initializing knowledge base...")
         try:
             self.client = get_chroma_client()
             self.collection = get_or_create_collection(self.client)
+
+            if rebuild:
+                self.clear_and_rebuild_collection()
             
-            # Check if we have Minikube-specific knowledge in the collection
-            # This is a simple check to see if we have any documents with 'minikube' in their content
-            try:
-                minikube_results = self.collection.query(
-                    query_texts=["minikube"],
-                    n_results=1
-                )
-                if minikube_results and minikube_results['documents'] and minikube_results['documents'][0]:
-                    logger.info("Found Minikube-related knowledge in the knowledge base.")
-                else:
-                    logger.info("No Minikube-specific knowledge found. Consider adding Minikube documentation.")
-            except Exception as query_err:
-                logger.warning(f"Could not query for Minikube knowledge: {query_err}")
+            # Check if the collection is empty and may need initial population
+            if self.collection.count() == 0:
+                logger.info("Knowledge base is empty. Consider loading documents.")
+                # You might want to automatically trigger a build process here
             
             # Check if running in a Minikube environment
             self.is_minikube = self.detect_minikube_environment()
@@ -198,67 +199,44 @@ class KubernetesAgenticRAG:
                 except Exception as e:
                     logger.warning(f"Error using k8s_knowledge_fetcher: {e}")
             
-            # Fallback: Try to import and use k8s_client_utils directly
+            # Fallback: try to detect from cluster info
             try:
-                from k8s_client_utils import initialize_kubernetes_client, get_cluster_info
-                if initialize_kubernetes_client():
-                    cluster_info = get_cluster_info()
-                    if cluster_info.get("is_minikube", False):
-                        logger.info("Minikube detected via cluster info")
-                        return True
+                cluster_info = get_cluster_info()
+                return cluster_info.get('is_minikube', False)
             except Exception as e:
-                logger.warning(f"Error using k8s_client_utils: {e}")
-            
-            # Method: Check via subprocess
-            import subprocess
-            try:
-                result = subprocess.run(
-                    ["minikube", "status"],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                    check=False
-                )
-                if result.returncode == 0 and "host: Running" in result.stdout:
-                    logger.info("Minikube detected via status command")
-                    return True
-            except (subprocess.SubprocessError, FileNotFoundError):
-                logger.warning("Could not run minikube status command")
+                logger.warning(f"Error getting cluster info: {e}")
             
             return False
-            
         except Exception as e:
             logger.warning(f"Error detecting Minikube environment: {e}")
             return False
-
-
-
     
     def initialize_llm(self):
         """Initialize the LLM for generating responses."""
-        if not llm_available:
-            logger.warning("LLM modules not available. Running in retrieval-only mode.")
-            self.llm = None
-            return
-        
-        logger.info("Initializing LLM...")
-        try:
-            # Use the NVIDIA API key from environment variable or .env file
-            nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
-            if not nvidia_api_key:
-                try:
-                    from dotenv import load_dotenv
-                    load_dotenv()
-                    nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
-                except Exception as e:
-                    logger.warning(f"Could not load .env file: {e}")
-            if not nvidia_api_key:
-                raise ValueError("NVIDIA_API_KEY not set in environment or .env file.")
-            self.llm = NvidiaLLM(api_key=nvidia_api_key)
-            logger.info("LLM initialized successfully with NVIDIA API.")
-        except Exception as e:
-            logger.error(f"Failed to initialize LLM: {e}")
-            logger.warning("Running in retrieval-only mode.")
+        if llm_available:
+            try:
+                # Use the NVIDIA API key from environment variable or .env file
+                nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
+                if not nvidia_api_key:
+                    try:
+                        from dotenv import load_dotenv
+                        load_dotenv()
+                        nvidia_api_key = os.environ.get("NVIDIA_API_KEY")
+                    except Exception as e:
+                        logger.warning(f"Could not load .env file: {e}")
+                
+                if not nvidia_api_key:
+                    logger.warning("NVIDIA_API_KEY not set in environment or .env file. LLM will not be available.")
+                    self.llm = None
+                    return
+                
+                self.llm = NvidiaLLM(api_key=nvidia_api_key)
+                logger.info("LLM initialized successfully with NVIDIA API.")
+            except Exception as e:
+                logger.error(f"Failed to initialize LLM: {e}")
+                self.llm = None
+        else:
+            logger.warning("LLM not available. Running in retrieval-only mode.")
             self.llm = None
     
     def add_message(self, role: str, content: str):
@@ -303,12 +281,60 @@ class KubernetesAgenticRAG:
 
         # Check if the query is asking for real-time Kubernetes information
         k8s_info = None
+        pod_data = None
+        
         # Always try real-time fetch if k8s_fetcher_available, regardless of is_minikube
         if self._is_k8s_info_query(user_input) and k8s_fetcher_available:
             try:
                 logger.info("[DEBUG] Attempting to fetch real-time Kubernetes information from cluster...")
                 k8s_info = fetch_k8s_info(user_input)
                 logger.info(f"[DEBUG] fetch_k8s_info result: {str(k8s_info)[:200]}")
+                
+                # Extract structured pod data for LLM analysis
+                if "pod" in user_input.lower() and k8s_fetcher_available:
+                    try:
+                        # Get structured pod data from k8s_client_utils
+                        from k8s_client_utils import get_pod_info
+                        if "all namespaces" in user_input.lower() or "--all-namespaces" in user_input.lower():
+                            # For all namespaces, we need to get data differently
+                            from kubernetes import client
+                            core_api = client.CoreV1Api()
+                            pods = core_api.list_pod_for_all_namespaces().items
+                            pod_data = []
+                            for pod in pods:
+                                containers = []
+                                for c in pod.status.container_statuses or []:
+                                    container_info = {
+                                        'name': c.name,
+                                        'image': c.image,
+                                        'ready': c.ready,
+                                        'restart_count': c.restart_count,
+                                        'state': list(c.state.to_dict().keys())[0] if c.state else None,
+                                        'reason': getattr(c.state.waiting, 'reason', '') if c.state and c.state.waiting else ''
+                                    }
+                                    containers.append(container_info)
+                                    
+                                pod_data.append({
+                                    'name': pod.metadata.name,
+                                    'namespace': pod.metadata.namespace,
+                                    'status': pod.status.phase,
+                                    'node': pod.spec.node_name,
+                                    'ip': pod.status.pod_ip,
+                                    'containers': containers
+                                })
+                        else:
+                            # For specific namespace
+                            namespace = 'default'
+                            if 'namespace' in user_input.lower():
+                                import re
+                                ns_match = re.search(r'namespace\s+([^\s]+)', user_input.lower())
+                                if ns_match:
+                                    namespace = ns_match.group(1)
+                            pod_data = get_pod_info(namespace)
+                    except Exception as e:
+                        logger.error(f"Error getting structured pod data: {e}")
+                        pod_data = None
+                        
             except Exception as e:
                 logger.error(f"[DEBUG] Error fetching Kubernetes information: {e}")
 
@@ -317,28 +343,31 @@ class KubernetesAgenticRAG:
             results = query_knowledge_base(self.collection, user_input, n_results=3)
             retrieved_docs = results['documents'][0] if results['documents'] else []
             retrieved_metadatas = results['metadatas'][0] if results['metadatas'] else []
+            retrieved_distances = results['distances'][0] if results['distances'] else []
             
             if self.debug:
-                logger.debug(f"Retrieved {len(retrieved_docs)} documents from knowledge base")
-                for i, (doc, meta) in enumerate(zip(retrieved_docs, retrieved_metadatas)):
-                    logger.debug(f"Document {i+1}: {doc[:100]}...")
-                    logger.debug(f"Metadata {i+1}: {meta}")
+                logger.debug(f"Retrieved {len(retrieved_docs)} document chunks from knowledge base")
+                for i, (doc, meta, dist) in enumerate(zip(retrieved_docs, retrieved_metadatas, retrieved_distances)):
+                    logger.debug(f"  Chunk {i+1}: (Distance: {dist:.4f}) Source: {meta.get('source')} | Heading: {meta.get('heading')}")
+                    logger.debug(f"    Content: {doc[:100]}...")
         except Exception as e:
             logger.error(f"Error querying knowledge base: {e}")
             retrieved_docs = []
             retrieved_metadatas = []
         
-        # Format the context from retrieved documents
-        context = "\n\n".join([f"Document {i+1} (Source: {meta.get('source', 'Unknown')}):\n{doc}" 
-                              for i, (doc, meta) in enumerate(zip(retrieved_docs, retrieved_metadatas))])
+        # Format the context from retrieved chunks with metadata
+        context_chunks = []
+        for i, (doc, meta) in enumerate(zip(retrieved_docs, retrieved_metadatas)):
+            source = meta.get('source', 'Unknown Source')
+            heading = meta.get('heading', 'No Heading')
+            chunk_content = f"Source: {source} | Section: {heading}\nContent: {doc}"
+            context_chunks.append(chunk_content)
+        
+        context = "\n---\n".join(context_chunks)
         
         # If no documents were retrieved
         if not context:
             context = "No relevant information found in the knowledge base."
-            
-        # Add real-time Kubernetes information to the context if available
-        if k8s_info:
-            context = f"Real-time Kubernetes Information from Minikube:\n{k8s_info}\n\n" + context
         
         # Generate response using LLM if available
         if self.llm:
@@ -352,11 +381,20 @@ class KubernetesAgenticRAG:
             if hasattr(self, 'is_minikube') and self.is_minikube:
                 prompt += "\n\nIMPORTANT: You are currently analyzing a Minikube environment. Tailor your responses accordingly."
             
+            # Add structured pod data to the prompt if available
+            if pod_data:
+                prompt += f"\n\nYou are given the following Kubernetes pod data as a JSON array. "
+                prompt += f"Analyze the pod statuses, highlight any issues (like high restart counts, pending status, etc.), "
+                prompt += f"and provide actionable recommendations. You may summarize the pod list, and you may include "
+                prompt += f"a formatted pod list in your answer if it helps the user.\n\n"
+                prompt += f"Pod Data:\n{json.dumps(pod_data, indent=2)}\n\n"
+            
             # Complete the prompt with chat history, context and user input
             prompt += f"\n\nChat History:\n{chat_history}\n\nRelevant Context from Knowledge Base:\n{context}\n\nUser Query: {user_input}\n\nPlease provide a detailed response with chain-of-thought reasoning:"
             
             try:
                 response = self.llm.generate(prompt)
+                response = self._strip_pod_list_from_llm_output(response)
             except Exception as e:
                 logger.error(f"Error generating response from LLM: {e}")
                 response = self._fallback_response(user_input, context)
@@ -366,6 +404,7 @@ class KubernetesAgenticRAG:
         
         # Add the assistant's response to chat history
         self.add_message("assistant", response)
+        
         # Always show real-time Kubernetes info if available
         if k8s_info:
             combined = (
@@ -419,6 +458,36 @@ class KubernetesAgenticRAG:
         """
         return f"I found the following information that might help with your query about '{query}':\n\n{context}\n\nUnfortunately, I'm currently running in retrieval-only mode and cannot generate a detailed analysis. Please check the documentation or try again later when the LLM service is available."
 
+    def _strip_pod_list_from_llm_output(self, llm_output: str) -> str:
+        """Remove any markdown or formatted pod list from the LLM output."""
+        import re
+        lines = llm_output.splitlines()
+        filtered = []
+        in_pod_block = False
+        for line in lines:
+            # Detect start of pod list block (markdown, emoji, or table)
+            if (
+                line.strip().startswith('📦') or
+                re.match(r'^[✅⚠️❌]', line.strip()) or
+                line.strip().startswith('| Name') or
+                line.strip().startswith('--- Real-Time Kubernetes Data ---')
+            ):
+                in_pod_block = True
+                continue
+            # End pod block if we hit a reasoning/summary section
+            if in_pod_block and (
+                line.strip().startswith('--- LLM Reasoning') or
+                line.strip().startswith('###') or
+                line.strip().startswith('Step') or
+                line.strip().startswith('Analysis') or
+                line.strip().startswith('Next Steps')
+            ):
+                in_pod_block = False
+            if not in_pod_block:
+                filtered.append(line)
+        # Remove leading/trailing empty lines
+        return '\n'.join([l for l in filtered if l.strip()])
+
 def print_welcome_message(is_minikube=False, k8s_fetcher_available=False):
     """Print a welcome message for the CLI."""
     print(f"{Fore.CYAN}\nKubernetes Agentic RAG CLI Chat Interface{Style.RESET_ALL}")
@@ -444,11 +513,18 @@ def main():
     """Main function to run the CLI chat interface."""
     parser = argparse.ArgumentParser(description="Kubernetes Agentic RAG CLI Chat Interface")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--rebuild-kb", action="store_true", help="Clear and rebuild the knowledge base")
     args = parser.parse_args()
     
     # Initialize the RAG system
     try:
         rag_system = KubernetesAgenticRAG(debug=args.debug)
+        if args.rebuild_kb:
+            rag_system.clear_and_rebuild_collection()
+            # After rebuilding, you might want to exit or continue
+            print("Knowledge base has been rebuilt. Please restart the application.")
+            sys.exit(0)
+
     except Exception as e:
         logger.error(f"Failed to initialize the RAG system: {e}")
         sys.exit(1)

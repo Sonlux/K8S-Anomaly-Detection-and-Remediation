@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Bot, User, MessageCircle } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import PodTable from "./PodTable";
 
 interface Message {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "pods";
   content: string;
   timestamp: Date;
 }
@@ -112,19 +115,71 @@ const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
         body: JSON.stringify({ message: input }),
       });
       const data = await res.json();
+      const responseText = data.response || "Sorry, I encountered an error.";
 
-      if (!res.ok || data.error) {
-        throw new Error(data.error || "Failed to get response from backend");
+      const realTimeDataHeader = "--- Real-Time Kubernetes Data ---";
+      const llmReasoningHeader = "--- LLM Reasoning & Guidance ---";
+
+      let podDataContent = "";
+      let llmSummaryContent = "";
+
+      if (
+        responseText.includes(realTimeDataHeader) &&
+        responseText.includes(llmReasoningHeader)
+      ) {
+        const realTimeDataStartIndex =
+          responseText.indexOf(realTimeDataHeader) + realTimeDataHeader.length;
+        const llmReasoningStartIndex = responseText.indexOf(llmReasoningHeader);
+
+        podDataContent = responseText
+          .substring(realTimeDataStartIndex, llmReasoningStartIndex)
+          .trim();
+        llmSummaryContent = responseText
+          .substring(
+            responseText.indexOf(llmReasoningHeader) + llmReasoningHeader.length
+          )
+          .trim();
+      } else {
+        llmSummaryContent = responseText;
       }
 
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: data.response,
-        timestamp: new Date(),
-      };
+      const newMessages: Message[] = [];
+      const timestamp = new Date();
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      // Add pods data first
+      if (podDataContent) {
+        newMessages.push({
+          id: `${timestamp.getTime()}-pods`,
+          role: "pods",
+          content: podDataContent,
+          timestamp: timestamp,
+        });
+      }
+
+      // Then add the LLM summary
+      if (llmSummaryContent) {
+        newMessages.push({
+          id: `${timestamp.getTime()}-assistant`,
+          role: "assistant",
+          content: llmSummaryContent,
+          timestamp: timestamp,
+        });
+      }
+
+      if (newMessages.length > 0) {
+        setMessages((prev) => [...prev, ...newMessages]);
+      } else {
+        // Fallback for empty or unexpected response
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            role: "assistant",
+            content: "I did not receive a valid response.",
+            timestamp: new Date(),
+          },
+        ]);
+      }
     } catch (error: unknown) {
       console.error("Error sending message:", error);
       let errorMessage = "Unknown error";
@@ -208,6 +263,8 @@ const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
                 >
                   {message.role === "user" ? (
                     <User className="w-4 h-4 text-white" />
+                  ) : message.role === "pods" ? (
+                    <Bot className="w-4 h-4 text-green-300" />
                   ) : (
                     <Bot className="w-4 h-4 text-white" />
                   )}
@@ -216,12 +273,22 @@ const ChatInterface = ({ isOpen, onClose }: ChatInterfaceProps) => {
                   className={`p-3 rounded-lg ${
                     message.role === "user"
                       ? "bg-blue-600 text-white"
+                      : message.role === "pods"
+                      ? "bg-slate-800 text-slate-100 border border-slate-700 w-full"
                       : "bg-slate-700 text-slate-100"
                   }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">
-                    {message.content}
-                  </p>
+                  {message.role === "pods" ? (
+                    <pre className="whitespace-pre-wrap text-xs font-mono">
+                      {message.content}
+                    </pre>
+                  ) : (
+                    <div className="prose prose-sm prose-invert max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

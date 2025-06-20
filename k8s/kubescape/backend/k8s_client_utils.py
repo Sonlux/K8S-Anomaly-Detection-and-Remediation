@@ -88,8 +88,11 @@ def get_cluster_info():
         pods = core_api.list_pod_for_all_namespaces().items
         nodes = core_api.list_node().items
 
+        # Use the robust detection function here!
+        is_mk = is_minikube_cluster()
+
         return {
-            "is_minikube": "minikube" in version_info.git_version.lower(),
+            "is_minikube": is_mk,
             "node_count": len(nodes),
             "namespace_count": len(namespaces),
             "pod_count": len(pods),
@@ -105,7 +108,6 @@ def get_cluster_info():
         }
 
 
-# Update all other functions similarly...
 def get_node_info():
     if not initialize_kubernetes_client():
         return []
@@ -210,3 +212,29 @@ def get_pod_logs(pod_name, namespace='default', container=None, tail_lines=100):
     except Exception as e:
         logger.error(f"Error getting pod logs: {e}")
         return f"Error getting logs: {e}"
+
+def is_minikube_cluster():
+    """
+    Robustly detect if the current cluster is a Minikube cluster.
+    Checks node names, node labels, and version string.
+    """
+    try:
+        from kubernetes import client
+        core_api = client.CoreV1Api()
+        nodes = core_api.list_node().items
+        for node in nodes:
+            if node.metadata.name == "minikube":
+                return True
+            if node.metadata.labels and any("minikube" in k for k in node.metadata.labels.keys()):
+                return True
+        # Fallback to version string
+        version_api = client.VersionApi()
+        version_info = version_api.get_code()
+        if "minikube" in version_info.git_version.lower():
+            return True
+    except Exception as e:
+        logger.error(f"Error detecting minikube: {e}")
+    return False
+
+# For backward compatibility with other imports
+is_minikube_available = is_minikube_cluster
