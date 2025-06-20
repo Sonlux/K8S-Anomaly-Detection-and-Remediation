@@ -281,6 +281,8 @@ class KubernetesAgenticRAG:
 
         # Check if the query is asking for real-time Kubernetes information
         k8s_info = None
+        real_time_data = None
+        real_time_data_type = None
         pod_data = None
         
         # Always try real-time fetch if k8s_fetcher_available, regardless of is_minikube
@@ -289,54 +291,87 @@ class KubernetesAgenticRAG:
                 logger.info("[DEBUG] Attempting to fetch real-time Kubernetes information from cluster...")
                 k8s_info = fetch_k8s_info(user_input)
                 logger.info(f"[DEBUG] fetch_k8s_info result: {str(k8s_info)[:200]}")
-                
-                # Extract structured pod data for LLM analysis
-                if "pod" in user_input.lower() and k8s_fetcher_available:
-                    try:
-                        # Get structured pod data from k8s_client_utils
-                        from k8s_client_utils import get_pod_info
-                        if "all namespaces" in user_input.lower() or "--all-namespaces" in user_input.lower():
-                            # For all namespaces, we need to get data differently
-                            from kubernetes import client
-                            core_api = client.CoreV1Api()
-                            pods = core_api.list_pod_for_all_namespaces().items
-                            pod_data = []
-                            for pod in pods:
-                                containers = []
-                                for c in pod.status.container_statuses or []:
-                                    container_info = {
-                                        'name': c.name,
-                                        'image': c.image,
-                                        'ready': c.ready,
-                                        'restart_count': c.restart_count,
-                                        'state': list(c.state.to_dict().keys())[0] if c.state else None,
-                                        'reason': getattr(c.state.waiting, 'reason', '') if c.state and c.state.waiting else ''
-                                    }
-                                    containers.append(container_info)
-                                    
-                                pod_data.append({
-                                    'name': pod.metadata.name,
-                                    'namespace': pod.metadata.namespace,
-                                    'status': pod.status.phase,
-                                    'node': pod.spec.node_name,
-                                    'ip': pod.status.pod_ip,
-                                    'containers': containers
-                                })
-                        else:
-                            # For specific namespace
-                            namespace = 'default'
-                            if 'namespace' in user_input.lower():
-                                import re
-                                ns_match = re.search(r'namespace\s+([^\s]+)', user_input.lower())
-                                if ns_match:
-                                    namespace = ns_match.group(1)
-                            pod_data = get_pod_info(namespace)
-                    except Exception as e:
-                        logger.error(f"Error getting structured pod data: {e}")
-                        pod_data = None
-                        
+
+                # Determine the type of resource being queried
+                lowered = user_input.lower()
+                if "pod" in lowered:
+                    real_time_data_type = "pods"
+                    # Get structured pod data from k8s_client_utils
+                    from k8s_client_utils import get_pod_info
+                    if "all namespaces" in lowered or "--all-namespaces" in lowered:
+                        from kubernetes import client
+                        core_api = client.CoreV1Api()
+                        pods = core_api.list_pod_for_all_namespaces().items
+                        pod_data = []
+                        for pod in pods:
+                            containers = []
+                            for c in pod.status.container_statuses or []:
+                                container_info = {
+                                    'name': c.name,
+                                    'image': c.image,
+                                    'ready': c.ready,
+                                    'restart_count': c.restart_count,
+                                    'state': list(c.state.to_dict().keys())[0] if c.state else None,
+                                    'reason': getattr(c.state.waiting, 'reason', '') if c.state and c.state.waiting else ''
+                                }
+                                containers.append(container_info)
+                            pod_data.append({
+                                'name': pod.metadata.name,
+                                'namespace': pod.metadata.namespace,
+                                'status': pod.status.phase,
+                                'node': pod.spec.node_name,
+                                'ip': pod.status.pod_ip,
+                                'containers': containers
+                            })
+                        real_time_data = pod_data
+                    else:
+                        namespace = 'default'
+                        if 'namespace' in lowered:
+                            import re
+                            ns_match = re.search(r'namespace\s+([^\s]+)', lowered)
+                            if ns_match:
+                                namespace = ns_match.group(1)
+                        pod_data = get_pod_info(namespace)
+                        real_time_data = pod_data
+                elif "node" in lowered:
+                    real_time_data_type = "nodes"
+                    from k8s_client_utils import get_node_info
+                    real_time_data = get_node_info()
+                elif "deployment" in lowered:
+                    real_time_data_type = "deployments"
+                    from k8s_client_utils import get_deployment_info
+                    namespace = 'default'
+                    if 'namespace' in lowered:
+                        import re
+                        ns_match = re.search(r'namespace\s+([^\s]+)', lowered)
+                        if ns_match:
+                            namespace = ns_match.group(1)
+                    real_time_data = get_deployment_info(namespace)
+                elif "service" in lowered:
+                    real_time_data_type = "services"
+                    from k8s_client_utils import get_service_info
+                    namespace = 'default'
+                    if 'namespace' in lowered:
+                        import re
+                        ns_match = re.search(r'namespace\s+([^\s]+)', lowered)
+                        if ns_match:
+                            namespace = ns_match.group(1)
+                    real_time_data = get_service_info(namespace)
+                elif "namespace" in lowered:
+                    real_time_data_type = "namespaces"
+                    from k8s_client_utils import get_namespace_info
+                    real_time_data = get_namespace_info()
+                elif any(word in lowered for word in ['status', 'cluster', 'overview', 'health']):
+                    real_time_data_type = "cluster"
+                    from k8s_client_utils import get_cluster_info
+                    real_time_data = get_cluster_info()
+                else:
+                    real_time_data_type = None
+                    real_time_data = None
             except Exception as e:
                 logger.error(f"[DEBUG] Error fetching Kubernetes information: {e}")
+                real_time_data = None
+                real_time_data_type = None
 
         # Query the knowledge base
         try:
@@ -381,13 +416,55 @@ class KubernetesAgenticRAG:
             if hasattr(self, 'is_minikube') and self.is_minikube:
                 prompt += "\n\nIMPORTANT: You are currently analyzing a Minikube environment. Tailor your responses accordingly."
             
-            # Add structured pod data to the prompt if available
-            if pod_data:
-                prompt += f"\n\nYou are given the following Kubernetes pod data as a JSON array. "
-                prompt += f"Analyze the pod statuses, highlight any issues (like high restart counts, pending status, etc.), "
-                prompt += f"and provide actionable recommendations. You may summarize the pod list, and you may include "
-                prompt += f"a formatted pod list in your answer if it helps the user.\n\n"
-                prompt += f"Pod Data:\n{json.dumps(pod_data, indent=2)}\n\n"
+            # Add real-time data to the prompt if available
+            if real_time_data is not None and real_time_data_type is not None:
+                if real_time_data_type == "cluster":
+                    prompt += (
+                        "\n\nYou are given the following real-time Kubernetes cluster summary as a JSON object. "
+                        "Your job is to:\n"
+                        "1. Summarize the overall cluster health (is minikube, node count, pod count, namespace count, etc.).\n"
+                        "2. Highlight any potential issues (e.g., only 1 node, high pod count, minikube limitations, etc.).\n"
+                        "3. List the most important findings in bullet points.\n"
+                        "4. Give specific, actionable recommendations for improving or monitoring the cluster.\n"
+                        "5. If everything is healthy, say so clearly.\n"
+                        "Example:\n"
+                        "Cluster Data:\n"
+                        "{'is_minikube': True, 'node_count': 1, 'namespace_count': 8, 'pod_count': 42, ...}\n"
+                        "Summary:\n"
+                        "- Minikube environment detected (single-node cluster).\n"
+                        "- 1 node, 8 namespaces, 42 pods.\n"
+                        "- No immediate issues detected, but single-node clusters are not highly available.\n"
+                        "Recommendations:\n"
+                        "1. Monitor pod and node health regularly.\n"
+                        "2. For production, consider a multi-node cluster for high availability.\n"
+                        "If no issues are found, say: 'Cluster is healthy and running as expected.'\n"
+                        f"Cluster Data:\n{json.dumps(real_time_data, indent=2)}\n\n"
+                    )
+                else:
+                    prompt += (
+                        f"\n\nYou are given the following real-time Kubernetes {real_time_data_type} data as a JSON object or array. "
+                        "Your job is to:\n"
+                        "1. Summarize the overall state (e.g., how many are Running, Pending, Failed, etc.).\n"
+                        f"2. Highlight any {real_time_data_type} with high restart counts, non-running states, or other issues.\n"
+                        "3. List the most important issues in bullet points or a table.\n"
+                        "4. Give specific, actionable recommendations for the issues you find (e.g., check logs, increase resources, fix image pull errors).\n"
+                        "5. If everything is healthy, say so clearly.\n"
+                        "Example:\n"
+                        "Pod Data:\n"
+                        "[{'name': 'my-app', 'status': 'CrashLoopBackOff', 'restart_count': 12}, ...]\n"
+                        "Summary:\n"
+                        "- 1 pod in CrashLoopBackOff (my-app)\n"
+                        "- 2 pods Pending\n"
+                        "- 5 pods Running\n"
+                        "Issues:\n"
+                        "- my-app is crashing repeatedly (12 restarts). Check logs for errors.\n"
+                        "- pod xyz is Pending. Check for resource constraints.\n"
+                        "Recommendations:\n"
+                        "1. Run `kubectl logs my-app` to investigate crashes.\n"
+                        "2. Check node resources for Pending pods.\n"
+                        "If no issues are found, say: 'All pods are healthy and running.'\n"
+                        f"{real_time_data_type.capitalize()} Data:\n{json.dumps(real_time_data, indent=2)}\n\n"
+                    )
             
             # Complete the prompt with chat history, context and user input
             prompt += f"\n\nChat History:\n{chat_history}\n\nRelevant Context from Knowledge Base:\n{context}\n\nUser Query: {user_input}\n\nPlease provide a detailed response with chain-of-thought reasoning:"
