@@ -20,13 +20,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-rag = KubernetesAgenticRAG()
+rag = KubernetesAgenticRAG(debug=True)
 
 @app.post("/api/chat")
 async def chat_endpoint(request: Request):
     data = await request.json()
     user_input = data.get("message", "")
-    response = rag.query(user_input)
+    response = rag.chat(user_input)
     return {"response": response}
 
 if __name__ == "__main__":

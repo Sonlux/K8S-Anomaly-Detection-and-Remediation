@@ -23,11 +23,12 @@ import argparse
 from typing import List, Dict, Any, Optional
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 import colorama
 from colorama import Fore, Style
 # Add this import near the top of your agentic_rag_cli.py file, with your other imports
 from k8s_client_utils import initialize_kubernetes_client, get_cluster_info
+import time
 
 
 # Initialize colorama for cross-platform colored terminal output
@@ -41,7 +42,10 @@ from rag_utils import (
     get_chroma_client,
     get_or_create_collection,
     query_knowledge_base,
-    load_documents_from_json
+    load_documents_from_json,
+    hybrid_search,
+    add_documents_to_knowledge_base,
+    build_bm25_index
 )
 
 # Import Kubernetes knowledge fetcher
@@ -83,29 +87,123 @@ except ImportError as e:
 SYSTEM_PROMPT = """
 You are Koda, a Kubernetes Anomaly Remediation Agent. Your mission is to provide clear, accurate, and actionable advice on Kubernetes issues.
 
-You will be given context from a knowledge base containing Kubernetes documentation, best practices, and troubleshooting guides. This context is provided in chunks, each with a source and a section heading.
+You have access to a set of tools for fetching real-time Kubernetes data (pods, nodes, deployments, logs, etc.).
+
+**IMPORTANT INSTRUCTIONS FOR TOOL USAGE:**
+1. When the user asks for real-time Kubernetes data (e.g., show pods, fetch pods, get nodes, get logs, show deployments, etc.), you MUST:
+   a. First output a TOOL_REQUEST block in this format:
+      TOOL_REQUEST: {"tool": "tool_name", "args": {"arg1": "value1", ...}}
+   b. Wait for the TOOL_RESULT
+   c. ALWAYS summarize the data from TOOL_RESULT in a clear, structured format (table or bullet points)
+   d. Include counts, status summaries, and any issues detected
+
+2. NEVER skip the summary step! The user cannot see the raw TOOL_RESULT data!
+
+3. For ANY query about pods, nodes, deployments, services, etc., use the appropriate tool rather than relying on static knowledge.
+
+**EXAMPLE INTERACTION:**
+User Query: show pods
+TOOL_REQUEST: {"tool": "get_pods", "args": {"namespace": "default"}}
+TOOL_RESULT: [
+  {"name": "nginx-123", "namespace": "default", "status": "Running", "node": "minikube", "ip": "10.1.1.1", "containers": [{"name": "nginx", "ready": true, "restart_count": 0}]},
+  {"name": "api-456", "namespace": "default", "status": "Pending", "node": "minikube", "ip": null, "containers": [{"name": "api", "ready": false, "restart_count": 2}]}
+]
+YOUR RESPONSE MUST INCLUDE:
+```
+Pod Status Summary:
+- Total pods in default namespace: 2
+- Running: 1 (nginx-123)
+- Pending: 1 (api-456)
+- Problematic pods: api-456 (2 restarts, not ready)
+
+Recommendation: Check logs for api-456 to diagnose why it's not running.
+```
+
+**RESPONSE FORMAT REQUIREMENTS:**
+1. For tool results, ALWAYS format your response as:
+   ```
+   --- Real-Time Kubernetes Data ---
+   [Summary of the data in table or bullet points]
+   
+   --- Analysis & Recommendations ---
+   [Your insights and advice based on the data]
+   ```
+
+2. NEVER respond with just "I'll help you with that" or similar phrases without actual data.
+
+3. If you receive empty results from a tool, explicitly state that (e.g., "No pods found in the default namespace").
 
 Your task is to follow these steps to construct your answer:
-1.  **Analyze the User's Query**: Understand the core problem or question the user is asking.
-2.  **Synthesize Information**: Review all the provided context chunks. Identify the most relevant pieces of information from each chunk that address the user's query.
-3.  **Formulate a Chain of Thought**:
-    *   Start by stating the primary issue or topic.
-    *   Build a step-by-step explanation by combining information from the relevant chunks.
-    *   When you use information from a chunk, reference its source and section (e.g., "[Source: k8s_docs | Section: Pod Lifecycle]").
-    *   If multiple chunks contribute to a point, synthesize them into a coherent paragraph.
-4.  **Provide Actionable Recommendations**: If the query is about a problem, offer clear, numbered steps for diagnosis and resolution. Include `kubectl` commands where appropriate.
-5.  **Acknowledge Limitations**: If the provided context does not contain enough information to fully answer the query, state what's missing and suggest what the user could look for.
-
-**Example of a good response:**
-> The `CrashLoopBackOff` error you're seeing indicates that a container in your pod is starting and then repeatedly crashing.
->
-> Here's a breakdown of how to troubleshoot this, based on the provided context:
-> 1.  **Check Container Logs**: The first step is to inspect the logs of the crashing container to find out why it's failing. You can do this with the command `kubectl logs <pod-name> -c <container-name>` [Source: k8s_troubleshooting | Section: Debugging Pods].
-> 2.  **Review Resource Limits**: Insufficient memory or CPU can also cause crashes. Ensure the pod has adequate resources defined in its manifest [Source: k8s_best_practices | Section: Resource Management].
-> 3.  **Verify Liveness Probes**: An incorrectly configured liveness probe could be terminating your container prematurely. Check your deployment configuration for the probe's settings [Source: k8s_docs | Section: Liveness and Readiness Probes].
-
-Always prioritize accuracy and clarity. Your goal is to be a helpful and trustworthy assistant.
+1. **Analyze the User's Query**: Understand what Kubernetes information they need.
+2. **Use the Appropriate Tool**: Select and call the right tool to fetch real-time data.
+3. **Summarize the Results**: Create a clear, structured summary of the tool results.
+4. **Provide Analysis**: Highlight issues, patterns, or important information.
+5. **Give Recommendations**: Suggest next steps or fixes for any problems found.
 """
+
+# Tool registry and tool-calling interface
+TOOL_REGISTRY = {}
+def register_tool(name):
+    def decorator(func):
+        TOOL_REGISTRY[name] = func
+        return func
+    return decorator
+# Example tool registration
+@register_tool("get_pods")
+def tool_get_pods(namespace: str = "default"):
+    if k8s_fetcher_available:
+        from k8s_client_utils import get_pod_info
+        return get_pod_info(namespace)
+    return {"error": "Kubernetes fetcher not available"}
+
+@register_tool("get_nodes")
+def tool_get_nodes():
+    if k8s_fetcher_available:
+        from k8s_client_utils import get_node_info
+        return get_node_info()
+    return {"error": "Kubernetes fetcher not available"}
+
+@register_tool("get_deployments")
+def tool_get_deployments(namespace: str = "default"):
+    if k8s_fetcher_available:
+        from k8s_client_utils import get_deployment_info
+        return get_deployment_info(namespace)
+    return {"error": "Kubernetes fetcher not available"}
+
+@register_tool("get_services")
+def tool_get_services(namespace: str = "default"):
+    if k8s_fetcher_available:
+        from k8s_client_utils import get_service_info
+        return get_service_info(namespace)
+    return {"error": "Kubernetes fetcher not available"}
+
+@register_tool("get_namespaces")
+def tool_get_namespaces():
+    if k8s_fetcher_available:
+        from k8s_client_utils import get_namespace_info
+        return get_namespace_info()
+    return {"error": "Kubernetes fetcher not available"}
+
+@register_tool("get_cluster_info")
+def tool_get_cluster_info():
+    if k8s_fetcher_available:
+        from k8s_client_utils import get_cluster_info
+        return get_cluster_info()
+    return {"error": "Kubernetes fetcher not available"}
+
+@register_tool("get_pod_logs")
+def tool_get_pod_logs(pod_name: str, namespace: str = "default"):
+    if k8s_fetcher_available:
+        from k8s_knowledge_fetcher import fetch_pod_logs
+        return fetch_pod_logs(pod_name, namespace)
+    return {"error": "Kubernetes fetcher not available"}
+
+@register_tool("get_events")
+def tool_get_events(namespace: str = "default"):
+    if k8s_fetcher_available:
+        from k8s_knowledge_fetcher import fetch_k8s_info
+        return fetch_k8s_info(f"get events in namespace {namespace}")
+    return {"error": "Kubernetes fetcher not available"}
 
 class ChatMessage:
     """Represents a message in the chat history."""
@@ -126,24 +224,37 @@ class ChatMessage:
 class KubernetesAgenticRAG:
     """Main class for the Kubernetes Agentic RAG system."""
     
-    def __init__(self, debug: bool = False):
-        """Initialize the RAG system.
-        
-        Args:
-            debug: Whether to enable debug logging.
-        """
+    def __init__(self, rebuild_kb=False, debug=False):
+        """Initialize the RAG system."""
         self.debug = debug
-        if debug:
-            logging.getLogger().setLevel(logging.DEBUG)
+        self.messages = []
         
-        # Initialize chat history
-        self.chat_history: List[ChatMessage] = []
+        # Initialize knowledge base
+        self.initialize_knowledge_base(rebuild=rebuild_kb)
         
-        # Initialize the knowledge base
-        self.initialize_knowledge_base()
-        
-        # Initialize the LLM
+        # Initialize LLM
         self.initialize_llm()
+        
+        # Check if we have access to Kubernetes
+        self.k8s_fetcher_available = False
+        self.is_minikube = False
+        
+        try:
+            # Try to initialize the Kubernetes client
+            from k8s_client_utils import initialize_kubernetes_client, get_cluster_info
+            api = initialize_kubernetes_client()
+            
+            # Check if we're connected to a cluster
+            cluster_info = get_cluster_info(api)
+            if cluster_info:
+                self.k8s_fetcher_available = True
+                self.is_minikube = cluster_info.get("is_minikube", False)
+                if self.debug:
+                    logger.info(f"[DEBUG] Connected to Kubernetes cluster: {cluster_info}")
+        except Exception as e:
+            if self.debug:
+                logger.warning(f"[DEBUG] Failed to connect to Kubernetes: {e}")
+            self.k8s_fetcher_available = False
     
     def clear_and_rebuild_collection(self):
         """Clears and rebuilds the knowledge base collection."""
@@ -165,29 +276,43 @@ class KubernetesAgenticRAG:
             logger.error(f"Failed to clear and rebuild collection: {e}")
 
     def initialize_knowledge_base(self, rebuild: bool = False):
-        """Initialize the ChromaDB knowledge base."""
-        logger.info("Initializing knowledge base...")
+        """Initialize the knowledge base."""
         try:
-            self.client = get_chroma_client()
-            self.collection = get_or_create_collection(self.client)
-
-            if rebuild:
-                self.clear_and_rebuild_collection()
+            # Get the ChromaDB client and collection
+            client = get_chroma_client()
+            self.collection = get_or_create_collection(client)
             
-            # Check if the collection is empty and may need initial population
-            if self.collection.count() == 0:
-                logger.info("Knowledge base is empty. Consider loading documents.")
-                # You might want to automatically trigger a build process here
-            
-            # Check if running in a Minikube environment
-            self.is_minikube = self.detect_minikube_environment()
-            if self.is_minikube:
-                logger.info("Detected Minikube environment - adapting responses accordingly")
+            # Check if the collection is empty or if rebuild is requested
+            if rebuild or self.collection.count() == 0:
+                logger.info("Building knowledge base...")
                 
-            logger.info("Knowledge base initialized successfully.")
+                # Load documents from JSON
+                documents_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'k8s_docs.json')
+                documents, metadatas, ids = load_documents_from_json(documents_path)
+                
+                if documents:
+                    # Clear the collection if it exists
+                    if self.collection.count() > 0:
+                        self.collection.delete()
+                        self.collection = get_or_create_collection(client)
+                    
+                    # Add documents to the collection with deduplication
+                    add_documents_to_knowledge_base(self.collection, documents, metadatas, ids)
+                    
+                    # Build the BM25 index for hybrid search
+                    build_bm25_index(self.collection)
+                    
+                    logger.info(f"Knowledge base initialized with {self.collection.count()} chunks")
+                else:
+                    logger.warning("No documents found for knowledge base")
+            else:
+                # Build the BM25 index for hybrid search if not rebuilding
+                build_bm25_index(self.collection)
+                
+                logger.info(f"Using existing knowledge base with {self.collection.count()} chunks")
         except Exception as e:
-            logger.error(f"Failed to initialize knowledge base: {e}")
-            sys.exit(1)
+            logger.error(f"Error initializing knowledge base: {e}")
+            self.collection = None
             
     def detect_minikube_environment(self):
         """Detect if the system is running in a Minikube environment."""
@@ -247,7 +372,7 @@ class KubernetesAgenticRAG:
             content: The content of the message.
         """
         message = ChatMessage(role, content)
-        self.chat_history.append(message)
+        self.messages.append(message)
     
     def get_chat_history_as_text(self) -> str:
         """Get the chat history as a formatted text string.
@@ -256,244 +381,113 @@ class KubernetesAgenticRAG:
             The formatted chat history.
         """
         history_text = ""
-        for msg in self.chat_history:
+        for msg in self.messages:
             if msg.role == "user":
                 history_text += f"User: {msg.content}\n"
             else:
                 history_text += f"Assistant: {msg.content}\n"
         return history_text
     
-    def query(self, user_input: str) -> str:
-        """Process a user query and generate a response.
-        
-        Args:
-            user_input: The user's query text.
-            
-        Returns:
-            The generated response.
+    def validator_agent(self, user_query: str, context: str, real_time_data: str, main_answer: str) -> dict:
         """
-        # Add the user message to chat history
-        self.add_message("user", user_input)
-
-        # DEBUG: Log the query and minikube/k8s fetcher status
-        logger.info(f"[DEBUG] User query: {user_input}")
-        logger.info(f"[DEBUG] k8s_fetcher_available: {k8s_fetcher_available}, is_minikube: {getattr(self, 'is_minikube', None)}")
-
-        # Check if the query is asking for real-time Kubernetes information
-        k8s_info = None
-        real_time_data = None
-        real_time_data_type = None
-        pod_data = None
-        
-        # Always try real-time fetch if k8s_fetcher_available, regardless of is_minikube
-        if self._is_k8s_info_query(user_input) and k8s_fetcher_available:
-            try:
-                logger.info("[DEBUG] Attempting to fetch real-time Kubernetes information from cluster...")
-                k8s_info = fetch_k8s_info(user_input)
-                logger.info(f"[DEBUG] fetch_k8s_info result: {str(k8s_info)[:200]}")
-
-                # Determine the type of resource being queried
-                lowered = user_input.lower()
-                if "pod" in lowered:
-                    real_time_data_type = "pods"
-                    # Get structured pod data from k8s_client_utils
-                    from k8s_client_utils import get_pod_info
-                    if "all namespaces" in lowered or "--all-namespaces" in lowered:
-                        from kubernetes import client
-                        core_api = client.CoreV1Api()
-                        pods = core_api.list_pod_for_all_namespaces().items
-                        pod_data = []
-                        for pod in pods:
-                            containers = []
-                            for c in pod.status.container_statuses or []:
-                                container_info = {
-                                    'name': c.name,
-                                    'image': c.image,
-                                    'ready': c.ready,
-                                    'restart_count': c.restart_count,
-                                    'state': list(c.state.to_dict().keys())[0] if c.state else None,
-                                    'reason': getattr(c.state.waiting, 'reason', '') if c.state and c.state.waiting else ''
-                                }
-                                containers.append(container_info)
-                            pod_data.append({
-                                'name': pod.metadata.name,
-                                'namespace': pod.metadata.namespace,
-                                'status': pod.status.phase,
-                                'node': pod.spec.node_name,
-                                'ip': pod.status.pod_ip,
-                                'containers': containers
-                            })
-                        real_time_data = pod_data
-                    else:
-                        namespace = 'default'
-                        if 'namespace' in lowered:
-                            import re
-                            ns_match = re.search(r'namespace\s+([^\s]+)', lowered)
-                            if ns_match:
-                                namespace = ns_match.group(1)
-                        pod_data = get_pod_info(namespace)
-                        real_time_data = pod_data
-                elif "node" in lowered:
-                    real_time_data_type = "nodes"
-                    from k8s_client_utils import get_node_info
-                    real_time_data = get_node_info()
-                elif "deployment" in lowered:
-                    real_time_data_type = "deployments"
-                    from k8s_client_utils import get_deployment_info
-                    namespace = 'default'
-                    if 'namespace' in lowered:
-                        import re
-                        ns_match = re.search(r'namespace\s+([^\s]+)', lowered)
-                        if ns_match:
-                            namespace = ns_match.group(1)
-                    real_time_data = get_deployment_info(namespace)
-                elif "service" in lowered:
-                    real_time_data_type = "services"
-                    from k8s_client_utils import get_service_info
-                    namespace = 'default'
-                    if 'namespace' in lowered:
-                        import re
-                        ns_match = re.search(r'namespace\s+([^\s]+)', lowered)
-                        if ns_match:
-                            namespace = ns_match.group(1)
-                    real_time_data = get_service_info(namespace)
-                elif "namespace" in lowered:
-                    real_time_data_type = "namespaces"
-                    from k8s_client_utils import get_namespace_info
-                    real_time_data = get_namespace_info()
-                elif any(word in lowered for word in ['status', 'cluster', 'overview', 'health']):
-                    real_time_data_type = "cluster"
-                    from k8s_client_utils import get_cluster_info
-                    real_time_data = get_cluster_info()
-                else:
-                    real_time_data_type = None
-                    real_time_data = None
-            except Exception as e:
-                logger.error(f"[DEBUG] Error fetching Kubernetes information: {e}")
-                real_time_data = None
-                real_time_data_type = None
-
-        # Query the knowledge base
-        try:
-            results = query_knowledge_base(self.collection, user_input, n_results=3)
-            retrieved_docs = results['documents'][0] if results['documents'] else []
-            retrieved_metadatas = results['metadatas'][0] if results['metadatas'] else []
-            retrieved_distances = results['distances'][0] if results['distances'] else []
-            
-            if self.debug:
-                logger.debug(f"Retrieved {len(retrieved_docs)} document chunks from knowledge base")
-                for i, (doc, meta, dist) in enumerate(zip(retrieved_docs, retrieved_metadatas, retrieved_distances)):
-                    logger.debug(f"  Chunk {i+1}: (Distance: {dist:.4f}) Source: {meta.get('source')} | Heading: {meta.get('heading')}")
-                    logger.debug(f"    Content: {doc[:100]}...")
-        except Exception as e:
-            logger.error(f"Error querying knowledge base: {e}")
-            retrieved_docs = []
-            retrieved_metadatas = []
-        
-        # Format the context from retrieved chunks with metadata
-        context_chunks = []
-        for i, (doc, meta) in enumerate(zip(retrieved_docs, retrieved_metadatas)):
-            source = meta.get('source', 'Unknown Source')
-            heading = meta.get('heading', 'No Heading')
-            chunk_content = f"Source: {source} | Section: {heading}\nContent: {doc}"
-            context_chunks.append(chunk_content)
-        
-        context = "\n---\n".join(context_chunks)
-        
-        # If no documents were retrieved
-        if not context:
-            context = "No relevant information found in the knowledge base."
-        
-        # Generate response using LLM if available
+        Validator agent: checks if the main answer is faithful, complete, and non-hallucinated.
+        Returns a dict: {verdict: str, reason: str, suggestion: str}
+        """
         if self.llm:
-            # Prepare the prompt with system instructions, chat history, and retrieved context
-            chat_history = self.get_chat_history_as_text()
-            
-            # Base prompt
-            prompt = SYSTEM_PROMPT
-            
-            # Add Minikube-specific instruction if in Minikube environment
-            if hasattr(self, 'is_minikube') and self.is_minikube:
-                prompt += "\n\nIMPORTANT: You are currently analyzing a Minikube environment. Tailor your responses accordingly."
-            
-            # Add real-time data to the prompt if available
-            if real_time_data is not None and real_time_data_type is not None:
-                if real_time_data_type == "cluster":
-                    prompt += (
-                        "\n\nYou are given the following real-time Kubernetes cluster summary as a JSON object. "
-                        "Your job is to:\n"
-                        "1. Summarize the overall cluster health (is minikube, node count, pod count, namespace count, etc.).\n"
-                        "2. Highlight any potential issues (e.g., only 1 node, high pod count, minikube limitations, etc.).\n"
-                        "3. List the most important findings in bullet points.\n"
-                        "4. Give specific, actionable recommendations for improving or monitoring the cluster.\n"
-                        "5. If everything is healthy, say so clearly.\n"
-                        "Example:\n"
-                        "Cluster Data:\n"
-                        "{'is_minikube': True, 'node_count': 1, 'namespace_count': 8, 'pod_count': 42, ...}\n"
-                        "Summary:\n"
-                        "- Minikube environment detected (single-node cluster).\n"
-                        "- 1 node, 8 namespaces, 42 pods.\n"
-                        "- No immediate issues detected, but single-node clusters are not highly available.\n"
-                        "Recommendations:\n"
-                        "1. Monitor pod and node health regularly.\n"
-                        "2. For production, consider a multi-node cluster for high availability.\n"
-                        "If no issues are found, say: 'Cluster is healthy and running as expected.'\n"
-                        f"Cluster Data:\n{json.dumps(real_time_data, indent=2)}\n\n"
-                    )
-                else:
-                    prompt += (
-                        f"\n\nYou are given the following real-time Kubernetes {real_time_data_type} data as a JSON object or array. "
-                        "Your job is to:\n"
-                        "1. Summarize the overall state (e.g., how many are Running, Pending, Failed, etc.).\n"
-                        f"2. Highlight any {real_time_data_type} with high restart counts, non-running states, or other issues.\n"
-                        "3. List the most important issues in bullet points or a table.\n"
-                        "4. Give specific, actionable recommendations for the issues you find (e.g., check logs, increase resources, fix image pull errors).\n"
-                        "5. If everything is healthy, say so clearly.\n"
-                        "Example:\n"
-                        "Pod Data:\n"
-                        "[{'name': 'my-app', 'status': 'CrashLoopBackOff', 'restart_count': 12}, ...]\n"
-                        "Summary:\n"
-                        "- 1 pod in CrashLoopBackOff (my-app)\n"
-                        "- 2 pods Pending\n"
-                        "- 5 pods Running\n"
-                        "Issues:\n"
-                        "- my-app is crashing repeatedly (12 restarts). Check logs for errors.\n"
-                        "- pod xyz is Pending. Check for resource constraints.\n"
-                        "Recommendations:\n"
-                        "1. Run `kubectl logs my-app` to investigate crashes.\n"
-                        "2. Check node resources for Pending pods.\n"
-                        "If no issues are found, say: 'All pods are healthy and running.'\n"
-                        f"{real_time_data_type.capitalize()} Data:\n{json.dumps(real_time_data, indent=2)}\n\n"
-                    )
-            
-            # Complete the prompt with chat history, context and user input
-            prompt += f"\n\nChat History:\n{chat_history}\n\nRelevant Context from Knowledge Base:\n{context}\n\nUser Query: {user_input}\n\nPlease provide a detailed response with chain-of-thought reasoning:"
-            
-            try:
-                response = self.llm.generate(prompt)
-                response = self._strip_pod_list_from_llm_output(response)
-            except Exception as e:
-                logger.error(f"Error generating response from LLM: {e}")
-                response = self._fallback_response(user_input, context)
-        else:
-            # Fallback to a simple response if LLM is not available
-            response = self._fallback_response(user_input, context)
-        
-        # Add the assistant's response to chat history
-        self.add_message("assistant", response)
-        
-        # Always show real-time Kubernetes info if available
-        if k8s_info:
-            combined = (
-                f"--- Real-Time Kubernetes Data ---\n"
-                f"{k8s_info}\n"
-                f"--- LLM Reasoning & Guidance ---\n"
-                f"{response}"
+            prompt = (
+                "You are a validator agent. Your job is to review the following answer for a Kubernetes user query.\n"
+                "Check if the answer is:\n"
+                "- Faithful to the provided context and real-time data\n"
+                "- Complete (answers the user's question)\n"
+                "- Free of hallucinations or unsupported claims\n"
+                "If the answer is incomplete, hallucinated, or unfaithful, explain why and suggest what is missing.\n"
+                "\nUser Query:\n" + user_query +
+                "\nContext:\n" + context +
+                "\nReal-Time Data:\n" + real_time_data +
+                "\nMain Agent Answer:\n" + main_answer +
+                "\n\nRespond in JSON: {verdict: string, reason: string, suggestion: string}"
             )
-            return combined
+            try:
+                result = self.llm.generate(prompt)
+                import json
+                # Extract JSON from result
+                import re
+                match = re.search(r'\{.*\}', result, re.DOTALL)
+                if match:
+                    return json.loads(match.group(0))
+                else:
+                    return {"verdict": "unknown", "reason": "Validator could not parse response.", "suggestion": "Manual review needed."}
+            except Exception as e:
+                return {"verdict": "error", "reason": str(e), "suggestion": "Validator failed."}
         else:
-            return response
-    
+            # Simple rules-based fallback
+            verdict = "faithful"
+            reason = ""
+            suggestion = ""
+            if not main_answer or "no relevant information" in main_answer.lower():
+                verdict = "incomplete"
+                reason = "The answer is empty or says no relevant information."
+                suggestion = "Try rephrasing the query or providing more context."
+            return {"verdict": verdict, "reason": reason, "suggestion": suggestion}
+
+    def chat(self, user_input: str, chat_history: str = "") -> str:
+        """Process a user query and return a response."""
+        try:
+            start_time = time.time()
+            
+            # Check if the user's query is about Kubernetes resources
+            k8s_resource_query = self.is_k8s_resource_query(user_input)
+            
+            # Log debug info
+            if self.debug:
+                logger.info(f"[DEBUG] User query: {user_input}")
+                logger.info(f"[DEBUG] k8s_fetcher_available: {self.k8s_fetcher_available}, is_minikube: {self.is_minikube}")
+            
+            # Get context from knowledge base
+            context_chunks = self.retrieve_context(user_input)
+            
+            # Initialize tool results
+            tool_results = []
+            
+            # Format the input for the LLM
+            llm_input = self.format_llm_input(user_input, context_chunks, chat_history, tool_results)
+            
+            # Get the response from the LLM
+            response = self.get_llm_response(llm_input)
+            
+            # Check if the response contains a tool request
+            tool_request = self.parse_tool_request(response)
+            
+            if tool_request and self.k8s_fetcher_available:
+                # Execute the tool and get the results
+                tool_name = tool_request.get("tool")
+                tool_args = tool_request.get("args", {})
+                
+                if self.debug:
+                    logger.info(f"[DEBUG] Tool request: {tool_name}, args: {tool_args}")
+                
+                # Execute the tool
+                tool_results = self.execute_tool(tool_name, tool_args)
+                
+                # Format the input for the LLM with the tool results
+                llm_input = self.format_llm_input(user_input, context_chunks, chat_history, tool_results)
+                
+                # Get the final response from the LLM
+                response = self.get_llm_response(llm_input)
+            
+            # Process the LLM response to ensure data is shown
+            final_response = self.process_llm_response(response, user_input, tool_results)
+            
+            # Log the time taken
+            if self.debug:
+                logger.info(f"[DEBUG] Response time: {time.time() - start_time:.2f}s")
+            
+            return final_response
+        
+        except Exception as e:
+            logger.error(f"Error in chat: {e}")
+            return f"I encountered an error while processing your query: {str(e)}"
+
     def _is_k8s_info_query(self, query: str) -> bool:
         """Check if the query is asking for real-time Kubernetes information.
         
@@ -565,6 +559,702 @@ class KubernetesAgenticRAG:
         # Remove leading/trailing empty lines
         return '\n'.join([l for l in filtered if l.strip()])
 
+    def agentic_reasoning_loop(self, user_input: str) -> str:
+        """Implements an agentic reasoning loop that can call tools and reason about results."""
+        context = self.retrieve_context(user_input)
+        chat_history = self.get_chat_history_as_text()
+        tool_results = []
+        
+        # First pass - check if we need to call tools
+        llm_input = self.format_llm_input(user_input, context, chat_history, tool_results)
+        llm_output = self.llm_generate(llm_input)
+        
+        # Parse for tool requests
+        tool_request = self.parse_tool_request(llm_output)
+        
+        # Maximum tool calls to prevent infinite loops
+        max_tool_calls = 3
+        tool_calls = 0
+        
+        while tool_request and tool_calls < max_tool_calls:
+            tool_calls += 1
+            # Execute the tool
+            tool_name = tool_request.get("tool")
+            tool_args = tool_request.get("args", {})
+            
+            if tool_name in TOOL_REGISTRY:
+                try:
+                    result = TOOL_REGISTRY[tool_name](**tool_args)
+                    # Format the result for the LLM
+                    tool_results.append({
+                        "request": tool_request,
+                        "result": result
+                    })
+                    # Log the tool result for debugging
+                    if self.debug:
+                        print(f"TOOL RESULT: {json.dumps(result, indent=2)}")
+                except Exception as e:
+                    error_msg = f"Error executing tool {tool_name}: {str(e)}"
+                    tool_results.append({
+                        "request": tool_request,
+                        "error": error_msg
+                    })
+            
+            # Get the next action from the LLM
+            llm_input = self.format_llm_input(user_input, context, chat_history, tool_results)
+            llm_output = self.llm_generate(llm_input)
+            
+            # Check for more tool requests
+            tool_request = self.parse_tool_request(llm_output)
+        
+        # Final response generation with all tool results
+        final_llm_input = self.format_llm_input(user_input, context, chat_history, tool_results)
+        final_response = self.llm_generate(final_llm_input)
+        
+        # FALLBACK: If the response doesn't include a proper summary of the tool results,
+        # add a formatted summary ourselves
+        if tool_results and not "Real-Time Kubernetes Data" in final_response:
+            summary = self._format_tool_results_summary(tool_results)
+            final_response = f"{summary}\n\n{final_response}"
+        
+        return final_response
+
+    def _format_tool_results_summary(self, tool_results: list) -> str:
+        """Format tool results into a structured summary when the LLM fails to do so."""
+        summary = "--- Real-Time Kubernetes Data ---\n"
+        
+        for tool_result in tool_results:
+            request = tool_result.get("request", {})
+            result = tool_result.get("result", [])
+            error = tool_result.get("error")
+            
+            tool_name = request.get("tool", "unknown_tool")
+            
+            if error:
+                summary += f"\n{tool_name} error: {error}\n"
+                continue
+                
+            if tool_name == "get_pods":
+                summary += f"\nPod Status Summary:\n"
+                if not result:
+                    summary += "- No pods found in the specified namespace.\n"
+                else:
+                    summary += f"- Total pods: {len(result)}\n"
+                    status_counts = {}
+                    for pod in result:
+                        status = pod.get("status", "Unknown")
+                        if status not in status_counts:
+                            status_counts[status] = 0
+                        status_counts[status] += 1
+                    
+                    for status, count in status_counts.items():
+                        summary += f"- {status}: {count}\n"
+                    
+                    # List pods with issues
+                    problem_pods = []
+                    for pod in result:
+                        issues = []
+                        if pod.get("status") != "Running":
+                            issues.append(pod.get("status", "Unknown status"))
+                        
+                        for container in pod.get("containers", []):
+                            if not container.get("ready", True):
+                                issues.append("container not ready")
+                            if container.get("restart_count", 0) > 0:
+                                issues.append(f"{container.get('restart_count')} restarts")
+                        
+                        if issues:
+                            problem_pods.append(f"- {pod.get('name')}: {', '.join(issues)}")
+                    
+                    if problem_pods:
+                        summary += "\nPods with issues:\n"
+                        summary += "\n".join(problem_pods)
+            
+            elif tool_name == "get_nodes":
+                summary += f"\nNode Status Summary:\n"
+                if not result:
+                    summary += "- No nodes found in the cluster.\n"
+                else:
+                    summary += f"- Total nodes: {len(result)}\n"
+                    for node in result:
+                        ready_status = "Ready" if node.get("status", {}).get("Ready", {}).get("status") == "True" else "Not Ready"
+                        summary += f"- {node.get('name')}: {ready_status}\n"
+            
+            elif tool_name == "get_deployments":
+                summary += f"\nDeployment Status Summary:\n"
+                if not result:
+                    summary += "- No deployments found in the specified namespace.\n"
+                else:
+                    summary += f"- Total deployments: {len(result)}\n"
+                    for dep in result:
+                        replicas = dep.get("replicas", 0)
+                        ready = dep.get("ready_replicas", 0) or 0
+                        summary += f"- {dep.get('name')}: {ready}/{replicas} ready\n"
+            
+            elif tool_name == "get_services":
+                summary += f"\nService Status Summary:\n"
+                if not result:
+                    summary += "- No services found in the specified namespace.\n"
+                else:
+                    summary += f"- Total services: {len(result)}\n"
+                    for svc in result:
+                        summary += f"- {svc.get('name')}: {svc.get('type')} (ClusterIP: {svc.get('cluster_ip')})\n"
+            
+            elif tool_name == "get_namespaces":
+                summary += f"\nNamespace Status Summary:\n"
+                if not result:
+                    summary += "- No namespaces found in the cluster.\n"
+                else:
+                    summary += f"- Total namespaces: {len(result)}\n"
+                    for ns in result:
+                        summary += f"- {ns.get('name')}: {ns.get('status')}\n"
+            
+            elif tool_name == "get_cluster_info":
+                summary += f"\nCluster Information:\n"
+                if not result:
+                    summary += "- Failed to retrieve cluster information.\n"
+                else:
+                    for key, value in result.items():
+                        if key != "api_versions":  # Skip verbose API versions list
+                            summary += f"- {key}: {value}\n"
+            
+            elif tool_name == "get_pod_logs":
+                summary += f"\nPod Logs Summary:\n"
+                if not result or isinstance(result, str) and "Error" in result:
+                    summary += f"- {result}\n"
+                else:
+                    log_lines = result.split("\n")
+                    summary += f"- Retrieved {len(log_lines)} log lines\n"
+                    if len(log_lines) > 5:
+                        summary += "- Last 5 log entries:\n"
+                        for line in log_lines[-5:]:
+                            summary += f"  {line}\n"
+                    else:
+                        summary += "- Log entries:\n"
+                        for line in log_lines:
+                            summary += f"  {line}\n"
+        
+        summary += "\n--- Analysis & Recommendations ---\n"
+        return summary
+
+    def retrieve_context(self, user_input: str):
+        """
+        Use hybrid RAG retrieval pipeline:
+        1. Retrieve relevant chunks from the knowledge base using hybrid search
+        2. Apply cross-encoder reranking
+        3. Format the context for the LLM
+        """
+        try:
+            # Get the collection
+            client = get_chroma_client()
+            collection = get_or_create_collection(client)
+            
+            # Use enhanced hybrid search
+            context_chunks = hybrid_search(
+                collection=collection,
+                query_text=user_input,
+                n_results=5,
+                rerank_top_n=10
+            )
+            
+            if self.debug:
+                print(f"Retrieved {len(context_chunks)} context chunks")
+                for i, chunk in enumerate(context_chunks):
+                    print(f"Chunk {i+1}: {chunk['metadata'].get('source', 'unknown')} | {chunk['metadata'].get('heading', 'unknown')}")
+                    print(f"Score: {chunk.get('cross_score', chunk.get('rrf_score', 0)):.4f}")
+            
+            return context_chunks
+        except Exception as e:
+            logger.error(f"Error retrieving context: {e}")
+            return []
+
+    def format_llm_input(self, user_input: str, context_chunks: list, chat_history: str, tool_results: list):
+        """Format the input for the LLM."""
+        prompt = f"{SYSTEM_PROMPT}\n\nUser Query: {user_input}"
+        
+        # Add chat history if available
+        if chat_history:
+            prompt += f"\n\nChat History:\n{chat_history}"
+        
+        # Add context chunks if available
+        if context_chunks:
+            prompt += f"\n\nRelevant Context from Knowledge Base:\n"
+            for i, chunk in enumerate(context_chunks):
+                source = chunk['metadata'].get('source', 'Unknown Source')
+                heading = chunk['metadata'].get('heading', 'No Heading')
+                content = chunk['document']
+                score = chunk.get('cross_score', chunk.get('rrf_score', 0))
+                prompt += f"\n---\nChunk {i+1} [Source: {source} | Section: {heading} | Relevance: {score:.2f}]\n{content}\n"
+        
+        # Add tool results if available
+        if tool_results:
+            for tr in tool_results:
+                request = tr.get("request", {})
+                result = tr.get("result", {})
+                error = tr.get("error", None)
+                
+                tool_name = request.get("tool", "unknown_tool")
+                tool_args = request.get("args", {})
+                
+                prompt += f"\n\nTOOL_REQUEST: {json.dumps(request)}"
+                
+                if error:
+                    prompt += f"\nTOOL_ERROR: {error}"
+                else:
+                    prompt += f"\nTOOL_RESULT: {json.dumps(result, indent=2)}"
+        
+        return prompt
+
+    def llm_generate(self, llm_input: str):
+        if self.llm:
+            try:
+                return self.llm.generate(llm_input)
+            except Exception as e:
+                logger.error(f"Error in llm_generate: {e}")
+                return "Sorry, I encountered an error while generating my response."
+        else:
+            return llm_input
+
+    def parse_tool_request(self, llm_output: str):
+        """Extract a tool request from the LLM response."""
+        try:
+            # Look for the tool request pattern
+            tool_request_pattern = r"TOOL_REQUEST:\s*({.*?})"
+            match = re.search(tool_request_pattern, llm_output, re.DOTALL)
+            
+            if match:
+                tool_request_json = match.group(1).strip()
+                
+                # Clean up the JSON string
+                # Replace newlines and extra whitespace
+                tool_request_json = re.sub(r'\s+', ' ', tool_request_json)
+                
+                # Fix common JSON formatting issues
+                if tool_request_json.endswith('"args": {') or tool_request_json.endswith('"args":{'): 
+                    tool_request_json += '}'
+                
+                if not tool_request_json.endswith('}'):
+                    tool_request_json += '}'
+                
+                # Try to parse the JSON
+                try:
+                    tool_request = json.loads(tool_request_json)
+                    return tool_request
+                except json.JSONDecodeError as e:
+                    logger.error(f"Error parsing JSON: {e}")
+                    logger.error(f"JSON string: {tool_request_json}")
+                    
+                    # Try to extract just the tool name and args
+                    tool_name_match = re.search(r'"tool":\s*"([^"]+)"', tool_request_json)
+                    if tool_name_match:
+                        tool_name = tool_name_match.group(1)
+                        
+                        # Extract namespace if present
+                        namespace_match = re.search(r'"namespace":\s*"([^"]+)"', tool_request_json)
+                        namespace = namespace_match.group(1) if namespace_match else "default"
+                        
+                        return {
+                            "tool": tool_name,
+                            "args": {"namespace": namespace}
+                        }
+            
+            return None
+        except Exception as e:
+            logger.error(f"Error extracting tool request: {e}")
+            return None
+
+    def process_llm_response(self, response, user_input, tool_results):
+        """Process the LLM response, checking if tool calls were made and ensuring data is shown."""
+        try:
+            # Get the content from the response (response is already a string)
+            content = response
+            
+            # Check if the response has the expected sections
+            has_data_section = "Real-Time Kubernetes Data" in content
+            has_analysis_section = "Analysis & Recommendations" in content
+            
+            # If the response doesn't have the expected sections and we have tool results,
+            # apply a fallback formatter to ensure data is shown to the user
+            if (not has_data_section or not has_analysis_section) and tool_results:
+                logger.info("Applying fallback formatter to ensure data is shown")
+                return self.apply_fallback_formatter(content, tool_results)
+            
+            return content
+        
+        except Exception as e:
+            logger.error(f"Error processing LLM response: {e}")
+            return response
+    
+    def apply_fallback_formatter(self, response_content, tool_results):
+        """Apply a fallback formatter to ensure data is shown to the user."""
+        try:
+            # Check if we have tool results to format
+            if not tool_results:
+                return response_content
+            
+            # Format the tool results
+            formatted_data = self.format_tool_results(tool_results)
+            
+            # Create a structured response with sections
+            structured_response = f"""
+## Real-Time Kubernetes Data
+{formatted_data}
+
+## Analysis & Recommendations
+{response_content}
+"""
+            return structured_response
+        
+        except Exception as e:
+            logger.error(f"Error in fallback formatter: {e}")
+            return response_content
+    
+    def format_tool_results(self, tool_results):
+        """Format tool results into a readable format."""
+        try:
+            # Check if we have tool results
+            if not tool_results:
+                return "No data available."
+            
+            # Format based on the data type
+            if isinstance(tool_results, list):
+                # Check if it's a list of dictionaries (e.g., pods, nodes, etc.)
+                if all(isinstance(item, dict) for item in tool_results):
+                    # Get the keys from the first item
+                    if tool_results and len(tool_results) > 0:
+                        keys = list(tool_results[0].keys())
+                        
+                        # Format as a table
+                        result = "| " + " | ".join(keys) + " |\n"
+                        result += "| " + " | ".join(["---" for _ in keys]) + " |\n"
+                        
+                        for item in tool_results:
+                            row = []
+                            for key in keys:
+                                value = item.get(key, "")
+                                # Handle nested structures
+                                if isinstance(value, (dict, list)):
+                                    value = str(value)
+                                row.append(str(value))
+                            result += "| " + " | ".join(row) + " |\n"
+                        
+                        return result
+                    else:
+                        return "No items found."
+                else:
+                    # Simple list
+                    return "\n".join([f"- {item}" for item in tool_results])
+            elif isinstance(tool_results, dict):
+                # Format dictionary
+                return "\n".join([f"- **{key}**: {value}" for key, value in tool_results.items()])
+            else:
+                # String or other type
+                return str(tool_results)
+        
+        except Exception as e:
+            logger.error(f"Error formatting tool results: {e}")
+            return "Error formatting tool results."
+
+    def is_k8s_resource_query(self, query: str) -> bool:
+        """Check if the query is about Kubernetes resources."""
+        k8s_resource_keywords = [
+            "pod", "pods", "node", "nodes", "deployment", "deployments",
+            "service", "services", "namespace", "namespaces", "cluster",
+            "get", "list", "show", "describe", "fetch", "status"
+        ]
+        
+        query_lower = query.lower()
+        for keyword in k8s_resource_keywords:
+            if keyword in query_lower:
+                return True
+        
+        return False
+
+    def execute_tool(self, tool_name: str, tool_args: dict) -> any:
+        """Execute a tool and return the results."""
+        try:
+            # Map tool names to functions
+            tool_map = {
+                "get_pods": self.get_pods,
+                "get_nodes": self.get_nodes,
+                "get_deployments": self.get_deployments,
+                "get_services": self.get_services,
+                "get_cluster_info": self.get_cluster_info,
+                "get_cluster_status": self.get_cluster_status,
+                "get_logs": self.get_logs
+            }
+            
+            # Check if the tool exists
+            if tool_name not in tool_map:
+                logger.error(f"Unknown tool: {tool_name}")
+                return None
+            
+            # Execute the tool
+            tool_function = tool_map[tool_name]
+            return tool_function(**tool_args)
+        
+        except Exception as e:
+            logger.error(f"Error executing tool {tool_name}: {e}")
+            return None
+
+    def get_pods(self, namespace: str = "default") -> list:
+        """Get pods in a namespace."""
+        try:
+            # Initialize the Kubernetes client
+            api = initialize_kubernetes_client()
+            
+            # Get pods in the namespace
+            pods = api.list_namespaced_pod(namespace=namespace)
+            
+            # Format the results
+            results = []
+            for pod in pods.items:
+                containers = []
+                for container in pod.spec.containers:
+                    container_status = next((s for s in pod.status.container_statuses if s.name == container.name), None)
+                    containers.append({
+                        "name": container.name,
+                        "ready": container_status.ready if container_status else False,
+                        "restart_count": container_status.restart_count if container_status else 0
+                    })
+                
+                results.append({
+                    "name": pod.metadata.name,
+                    "namespace": pod.metadata.namespace,
+                    "status": pod.status.phase,
+                    "node": pod.spec.node_name,
+                    "ip": pod.status.pod_ip,
+                    "containers": containers
+                })
+            
+            return results
+        
+        except Exception as e:
+            logger.error(f"Error getting pods: {e}")
+            return []
+
+    def get_nodes(self) -> list:
+        """Get nodes in the cluster."""
+        try:
+            # Initialize the Kubernetes client
+            api = initialize_kubernetes_client()
+            
+            # Get nodes
+            nodes = api.list_node()
+            
+            # Format the results
+            results = []
+            for node in nodes.items:
+                # Determine if the node is ready
+                ready_condition = next((c for c in node.status.conditions if c.type == "Ready"), None)
+                status = "Ready" if ready_condition and ready_condition.status == "True" else "NotReady"
+                
+                # Determine the node role
+                role = "worker"
+                for label in node.metadata.labels:
+                    if "node-role.kubernetes.io" in label:
+                        role = label.split("/")[1]
+                        break
+                
+                # Calculate age
+                age = "unknown"
+                if node.metadata.creation_timestamp:
+                    age_delta = datetime.now(timezone.utc) - node.metadata.creation_timestamp
+                    age = f"{age_delta.days}d"
+                
+                results.append({
+                    "name": node.metadata.name,
+                    "status": status,
+                    "role": role,
+                    "age": age
+                })
+            
+            return results
+        
+        except Exception as e:
+            logger.error(f"Error getting nodes: {e}")
+            return []
+
+    def get_deployments(self, namespace: str = "default") -> list:
+        """Get deployments in a namespace."""
+        try:
+            # Initialize the Kubernetes client
+            api = initialize_kubernetes_client(api_type="apps")
+            
+            # Get deployments
+            deployments = api.list_namespaced_deployment(namespace=namespace)
+            
+            # Format the results
+            results = []
+            for deployment in deployments.items:
+                # Calculate age
+                age = "unknown"
+                if deployment.metadata.creation_timestamp:
+                    age_delta = datetime.now(timezone.utc) - deployment.metadata.creation_timestamp
+                    age = f"{age_delta.days}d"
+                
+                results.append({
+                    "name": deployment.metadata.name,
+                    "namespace": deployment.metadata.namespace,
+                    "replicas": deployment.spec.replicas,
+                    "ready_replicas": deployment.status.ready_replicas or 0,
+                    "available_replicas": deployment.status.available_replicas or 0,
+                    "updated_replicas": deployment.status.updated_replicas or 0,
+                    "age": age
+                })
+            
+            return results
+        
+        except Exception as e:
+            logger.error(f"Error getting deployments: {e}")
+            return []
+
+    def get_services(self, namespace: str = "default") -> list:
+        """Get services in a namespace."""
+        try:
+            # Initialize the Kubernetes client
+            api = initialize_kubernetes_client()
+            
+            # Get services
+            services = api.list_namespaced_service(namespace=namespace)
+            
+            # Format the results
+            results = []
+            for service in services.items:
+                # Calculate age
+                age = "unknown"
+                if service.metadata.creation_timestamp:
+                    age_delta = datetime.now(timezone.utc) - service.metadata.creation_timestamp
+                    age = f"{age_delta.days}d"
+                
+                # Get ports
+                ports = []
+                if service.spec.ports:
+                    for port in service.spec.ports:
+                        ports.append({
+                            "name": port.name,
+                            "port": port.port,
+                            "target_port": port.target_port,
+                            "protocol": port.protocol
+                        })
+                
+                results.append({
+                    "name": service.metadata.name,
+                    "namespace": service.metadata.namespace,
+                    "type": service.spec.type,
+                    "cluster_ip": service.spec.cluster_ip,
+                    "external_ip": service.spec.external_i_ps[0] if service.spec.external_i_ps else None,
+                    "ports": ports,
+                    "age": age
+                })
+            
+            return results
+        
+        except Exception as e:
+            logger.error(f"Error getting services: {e}")
+            return []
+
+    def get_logs(self, pod_name: str, namespace: str = "default", container: str = None, tail_lines: int = 100) -> str:
+        """Get logs for a pod."""
+        try:
+            # Initialize the Kubernetes client
+            api = initialize_kubernetes_client()
+            
+            # Get logs
+            logs = api.read_namespaced_pod_log(
+                name=pod_name,
+                namespace=namespace,
+                container=container,
+                tail_lines=tail_lines
+            )
+            
+            return logs
+        
+        except Exception as e:
+            logger.error(f"Error getting logs: {e}")
+            return ""
+
+    def get_cluster_info(self) -> dict:
+        """Get cluster info."""
+        try:
+            # Initialize the Kubernetes client
+            api = initialize_kubernetes_client()
+            
+            # Get nodes
+            nodes = api.list_node()
+            
+            # Get pods across all namespaces
+            pods = api.list_pod_for_all_namespaces()
+            
+            # Get deployments across all namespaces
+            apps_api = initialize_kubernetes_client(api_type="apps")
+            deployments = apps_api.list_deployment_for_all_namespaces()
+            
+            # Get services across all namespaces
+            services = api.list_service_for_all_namespaces()
+            
+            # Get persistent volumes
+            pv_api = initialize_kubernetes_client(api_type="custom")
+            persistent_volumes = pv_api.list_persistent_volume()
+            
+            # Return counts
+            return {
+                "nodes": len(nodes.items),
+                "pods": len(pods.items),
+                "deployments": len(deployments.items),
+                "services": len(services.items),
+                "persistent_volumes": len(persistent_volumes.items)
+            }
+        
+        except Exception as e:
+            logger.error(f"Error getting cluster info: {e}")
+            return {
+                "nodes": 0,
+                "pods": 0,
+                "deployments": 0,
+                "services": 0,
+                "persistent_volumes": 0
+            }
+
+    def get_cluster_status(self) -> dict:
+        """Get detailed cluster status."""
+        try:
+            # Get nodes
+            nodes = self.get_nodes()
+            
+            # Get pods in default namespace
+            pods = self.get_pods(namespace="default")
+            
+            # Get deployments in default namespace
+            deployments = self.get_deployments(namespace="default")
+            
+            # Return detailed status
+            return {
+                "nodes": nodes,
+                "pods": pods,
+                "deployments": deployments
+            }
+        
+        except Exception as e:
+            logger.error(f"Error getting cluster status: {e}")
+            return {
+                "nodes": [],
+                "pods": [],
+                "deployments": []
+            }
+
+    def get_llm_response(self, prompt: str):
+        """Get a response from the LLM."""
+        if self.llm:
+            try:
+                return self.llm.generate(prompt)
+            except Exception as e:
+                logger.error(f"Error in get_llm_response: {e}")
+                raise
+        else:
+            logger.error("LLM not initialized")
+            raise Exception("LLM not initialized")
+
 def print_welcome_message(is_minikube=False, k8s_fetcher_available=False):
     """Print a welcome message for the CLI."""
     print(f"{Fore.CYAN}\nKubernetes Agentic RAG CLI Chat Interface{Style.RESET_ALL}")
@@ -587,53 +1277,48 @@ def print_welcome_message(is_minikube=False, k8s_fetcher_available=False):
     print(f"{Fore.CYAN}=========================================={Style.RESET_ALL}\n")
 
 def main():
-    """Main function to run the CLI chat interface."""
-    parser = argparse.ArgumentParser(description="Kubernetes Agentic RAG CLI Chat Interface")
+    """Main function for the CLI."""
+    parser = argparse.ArgumentParser(description="Kubernetes RAG CLI")
+    parser.add_argument("--rebuild", action="store_true", help="Rebuild the knowledge base")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    parser.add_argument("--rebuild-kb", action="store_true", help="Clear and rebuild the knowledge base")
     args = parser.parse_args()
     
     # Initialize the RAG system
-    try:
-        rag_system = KubernetesAgenticRAG(debug=args.debug)
-        if args.rebuild_kb:
-            rag_system.clear_and_rebuild_collection()
-            # After rebuilding, you might want to exit or continue
-            print("Knowledge base has been rebuilt. Please restart the application.")
-            sys.exit(0)
-
-    except Exception as e:
-        logger.error(f"Failed to initialize the RAG system: {e}")
-        sys.exit(1)
+    rag_system = KubernetesAgenticRAG(rebuild_kb=args.rebuild, debug=args.debug)
     
-    # Print welcome message with Minikube detection status and k8s fetcher availability
-    is_minikube = hasattr(rag_system, 'is_minikube') and rag_system.is_minikube
+    # Check if we have access to Kubernetes
+    is_minikube = rag_system.is_minikube
+    k8s_fetcher_available = rag_system.k8s_fetcher_available
+    
+    # Print welcome message
     print_welcome_message(is_minikube, k8s_fetcher_available)
     
-    # Main chat loop
+    # Interactive chat loop
     while True:
         try:
             # Get user input
-            user_input = input(f"{Fore.GREEN}You:{Style.RESET_ALL} ")
+            user_input = input(f"\n{Fore.GREEN}You:{Style.RESET_ALL} ")
             
-            # Check for exit commands
+            # Check for exit command
             if user_input.lower() in ["exit", "quit", "q"]:
-                print(f"\n{Fore.YELLOW}Thank you for using the Kubernetes Agentic RAG system. Goodbye!{Style.RESET_ALL}")
+                print(f"\n{Fore.BLUE}Koda:{Style.RESET_ALL} Goodbye!")
                 break
             
             # Process the query and get response
             print(f"\n{Fore.BLUE}Koda:{Style.RESET_ALL} Thinking...")
-            response = rag_system.query(user_input)
+            response = rag_system.chat(user_input)
             
             # Print the response
-            print(f"\n{Fore.BLUE}Koda:{Style.RESET_ALL} {response}\n")
+            print(f"\n{Fore.BLUE}Koda:{Style.RESET_ALL} {response}")
             
         except KeyboardInterrupt:
-            print(f"\n\n{Fore.YELLOW}Session interrupted. Exiting...{Style.RESET_ALL}")
+            print("\nExiting...")
             break
         except Exception as e:
-            logger.error(f"Error in chat loop: {e}")
-            print(f"\n{Fore.RED}An error occurred: {str(e)}{Style.RESET_ALL}\n")
+            print(f"\n{Fore.RED}Error:{Style.RESET_ALL} {str(e)}")
+            if args.debug:
+                import traceback
+                traceback.print_exc()
 
 if __name__ == "__main__":
     main()
