@@ -18,15 +18,15 @@ prerequisites:
 
 setup:
   backend:
+    - cd backend
     - pip install -r requirements.txt
-    - cd k8s/kubescape/backend
     - Create a .env file with:
         - LLAMA_API_KEY=your_llama_api_key
         - LLAMA_API_URL=your_llama_api_url
         - NVIDIA_API_KEY=your_nvidia_api_key
-    - uvicorn app:app --host 0.0.0.0 --port 8000
+    - uvicorn src.api.api_server:app --host 0.0.0.0 --port 8000
   frontend:
-    - cd k8s/kubescape
+    - cd frontend
     - npm install
     - npm run dev
 

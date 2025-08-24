@@ -52,20 +52,31 @@ A full-stack, production-grade platform for:
 ## 📁 Directory Structure
 
 ```
-k8s/
-├── kubescape/           # Frontend (React, Vite, etc.)
-│   ├── src/             # React source code
+├── backend/             # Python backend services
+│   ├── src/
+│   │   ├── agents/      # Multi-agent system components
+│   │   ├── api/         # FastAPI endpoints
+│   │   ├── services/    # Business logic
+│   │   └── utils/       # Utility functions
+│   ├── tests/           # Backend tests
+│   ├── models/          # ML models and artifacts
+│   ├── data/            # Data storage (metrics, chroma_db)
+│   └── requirements.txt # Python dependencies
+├── frontend/            # React frontend application
+│   ├── src/
+│   │   ├── components/  # React components
+│   │   ├── pages/       # Application pages
+│   │   ├── hooks/       # Custom hooks
+│   │   └── lib/         # Utilities
 │   ├── public/          # Static assets
-│   └── ...              # Frontend configs
-├── backend/             # FastAPI backend, agents, and utilities
-│   ├── app.py           # FastAPI entrypoint
-│   ├── agentic_rag_cli.py # RAG CLI
-│   ├── agents/          # Agent modules (anomaly, remediation, etc.)
-│   └── ...              # Other backend utilities
-├── data/                # Data storage (metrics, insights, chroma_db, etc.)
-├── models/              # ML models and artifacts
-├── src/                 # Python source code (agents, utils, etc.)
-└── requirements.txt     # Python dependencies
+│   └── package.json     # Node dependencies
+├── infra/               # Infrastructure and deployment
+│   ├── k8s/             # Kubernetes manifests
+│   ├── monitoring/      # Prometheus configs
+│   └── scripts/         # Deployment scripts
+└── shared/              # Shared configurations
+    ├── configs/         # Environment and config files
+    └── docs/            # Documentation
 ```
 
 ---
@@ -85,19 +96,22 @@ k8s/
 ### Backend Setup
 
 ```sh
+cd backend
 pip install -r requirements.txt
-cd k8s/kubescape/backend
-# Create .env with your API keys:
+
+# Create .env file with your API keys:
 # LLAMA_API_KEY=your_llama_api_key
 # LLAMA_API_URL=your_llama_api_url
 # NVIDIA_API_KEY=your_nvidia_api_key
-uvicorn app:app --host 0.0.0.0 --port 8000
+
+# Start the FastAPI server
+uvicorn src.api.api_server:app --host 0.0.0.0 --port 8000
 ```
 
 ### Frontend Setup
 
 ```sh
-cd k8s/kubescape
+cd frontend
 npm install
 npm run dev
 # Visit http://localhost:5173
@@ -109,18 +123,17 @@ npm run dev
 
 ### Backend
 
-- **Chat API:** `backend/app.py` (FastAPI endpoints)
-- **Agents:** `src/agents/` (multi-agent system)
-- **RAG CLI:** `src/agentic_rag_cli.py`
+- **Chat API:** `backend/src/api/api_server.py` (FastAPI endpoints)
+- **Agents:** `backend/src/agents/` (multi-agent system)
 - **Dataset Generator:** `dataset-generator.py`
-- **Anomaly Detection:** `models/anomaly_prediction.py`
-- **Remediation Logic:** `src/agents/remediation_agent.py`
+- **Anomaly Detection:** `backend/models/anomaly_prediction.py`
+- **Remediation Logic:** `backend/src/agents/remediation_agent.py`
 
 ### Frontend
 
-- **Chatbot:** `src/components/Chat/ChatInterface.tsx`
-- **Dashboard:** `src/components/Dashboard/`
-- **Charts:** `src/components/Dashboard/Charts/`
+- **Chatbot:** `frontend/src/components/Chat/ChatInterface.tsx`
+- **Dashboard:** `frontend/src/components/Dashboard/`
+- **Charts:** `frontend/src/components/Dashboard/Charts/`
 - **UI Library:** shadcn-ui, Tailwind CSS
 
 ---
@@ -140,10 +153,21 @@ npm run dev
 
 ### Example Commands
 
-- Run all monitoring: `python run_monitoring.py`
-- Run dataset generator: `python dataset-generator.py`
-- Run multi-agent system: `python src/agents/k8s_multi_agent_system.py`
-- Run the RAG CLI: `python src/agentic_rag_cli.py`
+```sh
+# Backend services
+cd backend
+uvicorn src.api.api_server:app --reload --host 0.0.0.0 --port 8000
+python src/agents/k8s_multi_agent_system.py
+python src/agents/anomaly_detection_agent.py
+
+# Frontend development
+cd frontend
+npm run dev
+
+# Infrastructure setup
+./infra/scripts/setup_minikube.ps1  # Windows
+./infra/scripts/setup_minikube.sh   # Linux/macOS
+```
 
 ### Example Queries
 
@@ -171,7 +195,7 @@ npm run dev
 
 ## 📝 License
 
-MIT License (or your chosen license)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 

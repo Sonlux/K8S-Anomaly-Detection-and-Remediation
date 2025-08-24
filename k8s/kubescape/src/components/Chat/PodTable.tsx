@@ -1,6 +1,21 @@
 import React from "react";
 
-export default function PodTable({ pods }: { pods: any[] }) {
+interface Container {
+  name: string;
+  ready: boolean;
+  restart_count: number;
+}
+
+interface Pod {
+  name: string;
+  namespace: string;
+  status: string;
+  node: string;
+  ip: string;
+  containers: Container[];
+}
+
+export default function PodTable({ pods }: { pods: Pod[] }) {
   if (!pods || pods.length === 0) return null;
   return (
     <div className="overflow-x-auto mt-2">
@@ -26,7 +41,7 @@ export default function PodTable({ pods }: { pods: any[] }) {
               <td className="px-2 py-1">
                 {pod.containers
                   ?.map(
-                    (c: any) =>
+                    (c: Container) =>
                       `${c.name} (${
                         c.ready ? "Ready" : "Not Ready"
                       }, Restarts: ${c.restart_count})`

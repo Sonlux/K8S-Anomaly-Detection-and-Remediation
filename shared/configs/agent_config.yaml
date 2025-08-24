@@ -1,0 +1,18 @@
+# Agent behavior configuration
+monitoring:
+  watch_interval: 10 # Interval in seconds between agent checks
+  alert_threshold: 0.7 # Probability threshold for anomaly alerts
+  history_window: 60 # Number of minutes of history to maintain
+
+dataset_generator:
+  input_file: "pod_metrics.csv"
+  generator_interval: 5 # Interval in seconds between metrics collection
+
+anomaly_detection:
+  use_nvidia_llm: false # Whether to use NVIDIA LLM for enhanced analysis
+  data_dir: "../data" # Directory to store data files
+
+remediation:
+  auto_approve: false # Whether to automatically approve remediation actions
+  max_retries: 3 # Maximum number of remediation attempts
+  backoff_minutes: 5 # Number of minutes to wait between remediation attempts

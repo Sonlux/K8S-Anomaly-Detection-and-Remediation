@@ -94,7 +94,7 @@ core_api = client.CoreV1Api()
 apps_api = client.AppsV1Api()
 
 # Import the RAG utility function
-from k8s.backend.rag_utils import query_knowledge_base
+from backend.src.utils.rag_utils import query_knowledge_base
 
 # System prompts
 remediation_system_prompt = """You are an expert Kubernetes administrator and site reliability engineer (SRE). Your task is to analyze Kubernetes pod anomalies and propose detailed, actionable remediation plans. You have access to a knowledge base of Kubernetes documentation and best practices. **Always prioritize information from the provided context when formulating your response.** If the context does not contain sufficient information, use your general Kubernetes knowledge."""

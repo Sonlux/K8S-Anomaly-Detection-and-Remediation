@@ -1,38 +1,43 @@
 {
-  "name": "k8s-dashboard",
+  "name": "k8s-monitoring-system",
   "version": "0.1.0",
   "private": true,
+  "description": "Kubernetes Monitoring, RAG, and Dashboard System - Root workspace",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "install:backend": "cd backend && pip install -r requirements.txt",
+    "install:frontend": "cd frontend && npm install",
+    "install:all": "npm run install:backend && npm run install:frontend",
+    "dev:backend": "cd backend && python -m uvicorn src.api.api_server:app --reload --host 0.0.0.0 --port 8000",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "lint:backend": "cd backend && pylint src/",
+    "lint:frontend": "cd frontend && npm run lint",
+    "test:backend": "cd backend && pytest",
+    "clean": "rm -rf node_modules frontend/node_modules backend/.venv",
+    "setup": "npm run install:all"
   },
-  "dependencies": {
-    "@heroicons/react": "^2.0.18",
-    "@tailwindcss/forms": "^0.5.7",
-    "autoprefixer": "^10.4.21",
-    "axios": "^1.6.2",
-    "d3": "^7.8.5",
-    "next": "^15.3.3",
-    "postcss": "^8.5.4",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-flow-renderer": "^10.3.17",
-    "recharts": "^2.10.3",
-    "tailwindcss": "^4.1.8",
-    "three": "^0.159.0",
-    "zustand": "^4.4.7"
-  },
+  "workspaces": [
+    "frontend"
+  ],
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.10",
-    "@types/d3": "^7.4.3",
     "@types/node": "^20.10.4",
-    "@types/react": "^18.2.42",
-    "@types/react-dom": "^18.2.17",
-    "@types/three": "^0.159.0",
-    "eslint": "^8.55.0",
-    "eslint-config-next": "14.0.4",
     "typescript": "^5.3.3"
-  }
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/k8s-monitoring-rag"
+  },
+  "keywords": [
+    "kubernetes",
+    "monitoring",
+    "rag",
+    "dashboard",
+    "ai",
+    "machine-learning"
+  ],
+  "license": "MIT"
 }
