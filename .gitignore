@@ -95,6 +95,10 @@ Thumbs.db
 .trae/
 .qodo/
 
+# Kiro IDE Files
+.kiro/
+.cursor/
+
 # Legacy k8s directory (to be removed)
 k8s/logs/
 k8s/data/
