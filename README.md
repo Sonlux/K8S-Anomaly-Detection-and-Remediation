@@ -36,6 +36,47 @@ A full-stack, production-grade platform for:
 
 ---
 
+## ⚙️ Configuration
+
+The system uses a centralized configuration management system for easy setup and maintenance.
+
+### Quick Setup
+
+1. **Create configuration file:**
+
+   ```bash
+   python backend/scripts/setup_config.py
+   ```
+
+2. **Or copy the example:**
+
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys and settings
+   ```
+
+3. **Test configuration:**
+   ```bash
+   python backend/src/config/test_config.py
+   ```
+
+### Required Settings
+
+At minimum, you need one LLM API key:
+
+```bash
+# .env file
+NVIDIA_API_KEY=your_nvidia_api_key_here
+# OR
+LLAMA_API_KEY=your_llama_api_key_here
+# OR
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+For detailed configuration options, see [Configuration Guide](backend/docs/configuration.md).
+
+---
+
 ## 🏗️ Architecture
 
 ```

@@ -4,8 +4,11 @@ import logging
 import json
 import traceback
 
+# Import configuration management
+from backend.src.config.loader import get_nvidia_api_key, setup_logging
+
 # Set up logging
-logging.basicConfig(level=logging.INFO)
+setup_logging()
 logger = logging.getLogger("nvidia_llm")
 
 class NvidiaLLM:
@@ -15,11 +18,11 @@ class NvidiaLLM:
         """Initialize the NVIDIA LLM client.
         
         Args:
-            api_key: NVIDIA API key (default: reads from NVIDIA_API_KEY env var)
+            api_key: NVIDIA API key (default: reads from configuration)
         """
-        self.api_key = api_key or os.environ.get("NVIDIA_API_KEY")
+        self.api_key = api_key or get_nvidia_api_key()
         if not self.api_key:
-            raise ValueError("NVIDIA API key not provided and NVIDIA_API_KEY env var not set")
+            raise ValueError("NVIDIA API key not provided and not found in configuration")
         
         if not self.api_key.startswith("nvapi-"):
             logger.warning("NVIDIA API key should typically start with 'nvapi-'")

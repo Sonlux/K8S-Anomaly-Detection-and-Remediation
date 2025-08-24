@@ -3,14 +3,39 @@ from pydantic import BaseModel
 import uvicorn
 import os
 import sys
+import logging
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Import configuration management
+from backend.src.config.loader import (
+    get_config, setup_logging, validate_environment, ensure_data_directories
+)
+
 # Import rag_utils for knowledge base querying
 from backend.src.utils.rag_utils import query_knowledge_base
 
-app = FastAPI(title="Model Context Protocol (MCP) Server")
+# Setup logging and configuration
+setup_logging()
+logger = logging.getLogger(__name__)
+
+# Validate environment
+if not validate_environment():
+    logger.error("Environment validation failed. Please check your configuration.")
+    sys.exit(1)
+
+# Ensure data directories exist
+ensure_data_directories()
+
+# Get configuration
+app_config = get_config()
+
+app = FastAPI(
+    title="Model Context Protocol (MCP) Server",
+    description="MCP server for Kubernetes monitoring system",
+    version="1.0.0"
+)
 
 class MCPRequest(BaseModel):
     model_name: str
@@ -26,10 +51,9 @@ class MCPResponse(BaseModel):
 async def mcp_query(request: MCPRequest):
     """Endpoint for Model Context Protocol (MCP) queries."""
     try:
-        # Here, you would integrate with your RAG system or other context providers
-        # For now, we'll use the existing rag_utils to query the knowledge base
+        logger.info(f"Received MCP query for model '{request.model_name}': {request.query}")
         
-        # Example: Querying the knowledge base based on the user's query
+        # Query the knowledge base using the RAG system
         results = query_knowledge_base(request.query)
         
         context_docs = [doc.page_content for doc in results]
@@ -43,6 +67,9 @@ async def mcp_query(request: MCPRequest):
 
         if not combined_context:
             combined_context = "No relevant context found for your query."
+            logger.warning(f"No context found for query: {request.query}")
+        else:
+            logger.info(f"Found {len(results)} relevant documents for query")
 
         return MCPResponse(
             model_name=request.model_name,
@@ -50,12 +77,23 @@ async def mcp_query(request: MCPRequest):
             source_documents=source_info
         )
     except Exception as e:
+        logger.error(f"MCP query failed: {e}")
         raise HTTPException(status_code=500, detail=f"MCP query failed: {str(e)}")
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "ok", "message": "MCP Server is running"}
+    if not app_config.monitoring.enable_health_checks:
+        raise HTTPException(status_code=404, detail="Health checks disabled")
+    
+    return {
+        "status": "ok", 
+        "message": "MCP Server is running",
+        "configuration": {
+            "port": app_config.api.mcp_server_port,
+            "log_level": app_config.logging.level
+        }
+    }
 
 @app.get("/")
 async def read_root():
@@ -110,6 +148,10 @@ async def health():
     return {"status": "healthy"}
 
 if __name__ == "__main__":
-    # You can specify the port via an environment variable or directly
-    port = int(os.getenv("MCP_SERVER_PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    logger.info(f"Starting MCP server on {app_config.api.api_server_host}:{app_config.api.mcp_server_port}")
+    uvicorn.run(
+        app, 
+        host=app_config.api.api_server_host, 
+        port=app_config.api.mcp_server_port,
+        log_level=app_config.logging.level.lower()
+    )

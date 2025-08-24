@@ -62,9 +62,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger("k8s-multi-agent")
 
+# Import configuration management
+from backend.src.config.loader import (
+    get_config, setup_logging, get_api_config, get_kubernetes_config,
+    is_test_mode, is_debug_mode, validate_environment, ensure_data_directories
+)
+
+# Setup logging and configuration
+setup_logging()
+
+# Get configuration
+app_config = get_config()
+k8s_config = get_kubernetes_config()
+
 # Global flags and configurations
-TEST_MODE = os.environ.get("K8S_TEST_MODE", "false").lower() == "true"
-DEBUG_MODE = os.environ.get("K8S_DEBUG_MODE", "false").lower() == "true"
+TEST_MODE = is_test_mode()
+DEBUG_MODE = is_debug_mode()
 
 if DEBUG_MODE:
     logger.setLevel(logging.DEBUG)
@@ -72,14 +85,12 @@ if DEBUG_MODE:
 # Global process management variables
 stop_event_triggered = False
 
-# LLM API configuration
-API_CONFIG = {
-    'openai_api_key': os.environ.get("OPENAI_API_KEY"),
-    'nvidia_api_key': os.environ.get("NVIDIA_API_KEY", "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"),
-    'use_llm': True,
+# LLM API configuration from centralized config
+API_CONFIG = get_api_config()
+API_CONFIG.update({
     'use_nvidia_direct': False,
     'llm_provider': "auto"  # "auto", "openai", "nvidia", "none"
-}
+})
 
 # Try to import NVIDIA LLM wrapper
 try:
@@ -183,7 +194,7 @@ class LlamaLLM:
             api_key: Llama API key (default: reads from LLAMA_API_KEY env var)
             base_url: Llama API base URL (default: reads from LLAMA_API_URL env var)
         """
-        self.api_key = api_key or os.environ.get("LLAMA_API_KEY")
+        self.api_key = api_key or app_config.api.llama_api_key
         if not self.api_key:
             raise ValueError("Llama API key not provided and LLAMA_API_KEY env var not set")
         
@@ -357,10 +368,10 @@ def initialize_llm():
     """Initialize the LLM based on available APIs."""
     global API_CONFIG
     
-    # Get API keys from environment
-    openai_api_key = os.environ.get("OPENAI_API_KEY")
-    nvidia_api_key = os.environ.get("NVIDIA_API_KEY", "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")
-    llama_api_key = os.environ.get("LLAMA_API_KEY")
+    # Get API keys from configuration
+    openai_api_key = app_config.api.openai_api_key
+    nvidia_api_key = app_config.api.nvidia_api_key
+    llama_api_key = app_config.api.llama_api_key
     
     # If Llama API key not provided but we want to use Llama, 
     # use NVIDIA key as fallback for compatibility
@@ -2737,11 +2748,15 @@ def main():
         "recursion_limit": args.recursion_limit
     })
     
-    # Set API keys from arguments if provided
+    # Set API keys from arguments if provided (override configuration)
     if args.llama_api_key:
         os.environ["LLAMA_API_KEY"] = args.llama_api_key
+        # Reload configuration to pick up the new value
+        app_config = get_config()
     if args.llama_api_url:
         os.environ["LLAMA_API_URL"] = args.llama_api_url
+        # Reload configuration to pick up the new value
+        app_config = get_config()
     
     # Load Kubernetes configuration
     try:

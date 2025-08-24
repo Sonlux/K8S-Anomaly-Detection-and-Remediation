@@ -7,6 +7,12 @@ import logging
 import random
 from datetime import datetime, timedelta
 
+# Import configuration management
+from backend.src.config.loader import (
+    get_config, setup_logging, get_kubernetes_config, 
+    validate_environment, ensure_data_directories
+)
+
 # Add the parent directory to the Python path to import other modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '.')))
 from backend.src.services.fetch_metrics import fetch_metrics
@@ -20,27 +26,52 @@ from backend.src.utils.k8s_client_utils import (
     get_cluster_info
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    force=True,
-    stream=sys.stdout
-)
+# Setup logging and configuration
+setup_logging()
 logger = logging.getLogger("dashboard-api")
 
+# Validate environment
+if not validate_environment():
+    logger.error("Environment validation failed. Please check your configuration.")
+    sys.exit(1)
+
+# Ensure data directories exist
+ensure_data_directories()
+
+# Get configuration
+app_config = get_config()
+k8s_config = get_kubernetes_config()
+
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+
+# Configure CORS with security settings
+CORS(app, origins=app_config.security.cors_origins)
 
 # Load Kubernetes configuration
 try:
-    config.load_kube_config()
+    if k8s_config["in_cluster"]:
+        config.load_incluster_config()
+        logger.info("Loaded in-cluster Kubernetes configuration")
+    else:
+        if k8s_config["kubeconfig_path"]:
+            config.load_kube_config(config_file=k8s_config["kubeconfig_path"])
+        else:
+            config.load_kube_config()
+        logger.info("Loaded Kubernetes configuration from kubeconfig")
+    
     v1 = client.CoreV1Api()
     apps_v1 = client.AppsV1Api()
     logger.info("Successfully loaded Kubernetes configuration")
 except Exception as e:
-    logger.error(f"Failed to load Kubernetes configuration: {e}")
-    logger.warning("API will run in mock mode with simulated data")
+    if k8s_config["test_mode"]:
+        logger.warning(f"Kubernetes configuration failed, running in test mode: {e}")
+        v1 = None
+        apps_v1 = None
+    else:
+        logger.error(f"Failed to load Kubernetes configuration: {e}")
+        logger.warning("API will run in mock mode with simulated data")
+        v1 = None
+        apps_v1 = None
 
 # Helper function to generate mock data for development
 def generate_mock_data():

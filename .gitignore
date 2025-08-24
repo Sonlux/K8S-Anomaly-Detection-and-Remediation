@@ -110,3 +110,24 @@ k8s/kubescape/backend/.env
 # Lock files (uncomment if you want to ignore them)
 # package-lock.json
 # frontend/package-lock.json
+
+# Development and Temporary Files
+workspace.md
+agp.py
+USER_RULES.yaml
+*.temp
+*.tmp
+*_temp.*
+*_backup.*
+prompt*.md
+notes*.txt
+*cleanup*.py
+*inventory*.py
+*inventory*.json
+DEVOPS_RULES.md
+PROJECT_CLEANUP_SUMMARY.md
+
+# Development prompts and notes
+structured-prompt.md
+rag_prompt.md
+k8s_agentic_rag_prompt.md
