@@ -503,7 +503,7 @@ We welcome contributions! Please follow these steps:
 
 ### Reporting Security Issues
 
-Please report security vulnerabilities privately to the maintainers.
+Please report security vulnerabilities privately to the maintainers
 
 ---
 
